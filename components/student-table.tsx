@@ -2,7 +2,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Eye, MessageSquare } from "lucide-react"
+import { Eye, MessageSquare, MapPin } from "lucide-react"
 import Link from "next/link"
 
 interface Student {
@@ -21,6 +21,9 @@ interface Student {
   rushesValidated: string
   validatedProjects: number
   codingLevel: string
+  campus?: string
+  age?: number
+  gender?: string
 }
 
 interface StudentTableProps {
@@ -48,6 +51,22 @@ export function StudentTable({ students }: StudentTableProps) {
     return "Not Recommended"
   }
 
+  const getCodingLevelColor = (level: string) => {
+    switch (level.toLowerCase()) {
+      case "expert":
+        return "bg-purple-100 text-purple-800"
+      case "advanced":
+        return "bg-blue-100 text-blue-800"
+      case "medium":
+      case "intermediate":
+        return "bg-green-100 text-green-800"
+      case "beginner":
+        return "bg-orange-100 text-orange-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -58,6 +77,7 @@ export function StudentTable({ students }: StudentTableProps) {
             <TableHead>Final Exam</TableHead>
             <TableHead>Rush Projects</TableHead>
             <TableHead>Coding Level</TableHead>
+            <TableHead>Campus</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -69,6 +89,7 @@ export function StudentTable({ students }: StudentTableProps) {
                 <div>
                   <div className="font-medium">{student.name}</div>
                   <div className="text-sm text-muted-foreground">{student.username}</div>
+                  <div className="text-xs text-muted-foreground">{student.email}</div>
                 </div>
               </TableCell>
               <TableCell>
@@ -86,7 +107,15 @@ export function StudentTable({ students }: StudentTableProps) {
               </TableCell>
               <TableCell>{student.rushesValidated}</TableCell>
               <TableCell>
-                <Badge variant="secondary">{student.codingLevel}</Badge>
+                <Badge className={getCodingLevelColor(student.codingLevel)}>{student.codingLevel}</Badge>
+              </TableCell>
+              <TableCell>
+                {student.campus && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-sm">{student.campus}</span>
+                  </div>
+                )}
               </TableCell>
               <TableCell>
                 <Badge className={getStatusColor(student)}>{getStatusText(student)}</Badge>

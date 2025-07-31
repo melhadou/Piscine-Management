@@ -25,7 +25,7 @@ const items = [
   },
   {
     title: "Students",
-    url: "/dashboard",
+    url: "/students",
     icon: Users,
   },
   {
@@ -34,19 +34,24 @@ const items = [
     icon: Upload,
   },
   {
-    title: "Analytics",
-    url: "/analytics",
-    icon: BarChart3,
-  },
-  {
-    title: "Rush Projects",
-    url: "/rush",
-    icon: Trophy,
-  },
-  {
     title: "Notes",
     url: "/notes",
     icon: FileText,
+  },
+]
+
+const disabledItems = [
+  {
+    title: "Analytics",
+    url: "#",
+    icon: BarChart3,
+    disabled: true,
+  },
+  {
+    title: "Rush Projects",
+    url: "#",
+    icon: Trophy,
+    disabled: true,
   },
 ]
 
@@ -84,6 +89,21 @@ export function AppSidebar() {
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Coming Soon</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {disabledItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton disabled className="opacity-50 cursor-not-allowed">
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
