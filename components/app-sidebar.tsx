@@ -1,138 +1,135 @@
 "use client"
 
-import { Home, Settings, Users, Upload, BarChart3, FileText, Trophy } from "lucide-react"
-import Link from "next/link"
+import type * as React from "react"
+import {
+  BarChart3,
+  Command,
+  Frame,
+  LifeBuoy,
+  Map,
+  PieChart,
+  Users,
+  FileText,
+  Trophy,
+  Upload,
+  Settings,
+} from "lucide-react"
 
+import { NavMain } from "@/components/nav-main"
+import { NavProjects } from "@/components/nav-projects"
+import { NavSecondary } from "@/components/nav-secondary"
+import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
+  SidebarFooter,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
-// Menu items.
-const items = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: Home,
+const data = {
+  user: {
+    name: "Staff Member",
+    email: "staff@42school.fr",
+    avatar: "/placeholder-user.jpg",
   },
-  {
-    title: "Students",
-    url: "/students",
-    icon: Users,
-  },
-  {
-    title: "Import Data",
-    url: "/import",
-    icon: Upload,
-  },
-  {
-    title: "Notes",
-    url: "/notes",
-    icon: FileText,
-  },
-]
+  navMain: [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: BarChart3,
+      isActive: true,
+    },
+    {
+      title: "Students",
+      url: "/students",
+      icon: Users,
+    },
+    {
+      title: "Notes",
+      url: "/notes",
+      icon: FileText,
+    },
+    {
+      title: "Rush Evaluation",
+      url: "/rush-evaluation",
+      icon: Trophy,
+    },
+  ],
+  navSecondary: [
+    {
+      title: "Import Data",
+      url: "/import",
+      icon: Upload,
+    },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: Settings,
+    },
+    {
+      title: "Support",
+      url: "#",
+      icon: LifeBuoy,
+    },
+  ],
+  projects: [
+    {
+      name: "C Piscine",
+      url: "#",
+      icon: Frame,
+    },
+    {
+      name: "Rush Projects",
+      url: "#",
+      icon: PieChart,
+    },
+    {
+      name: "Evaluations",
+      url: "#",
+      icon: Map,
+    },
+  ],
+}
 
-const disabledItems = [
-  {
-    title: "Analytics",
-    url: "#",
-    icon: BarChart3,
-    disabled: true,
-  },
-  {
-    title: "Rush Projects",
-    url: "#",
-    icon: Trophy,
-    disabled: true,
-  },
-]
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { isMobile, setOpenMobile } = useSidebar()
 
-const adminItems = [
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-  },
-]
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
 
-export function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b px-6 py-4">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">P</span>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold">Piscine Manager</h2>
-            <p className="text-xs text-muted-foreground">Student Management</p>
-          </div>
-        </div>
+    <Sidebar variant="inset" {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <a href="#" onClick={handleLinkClick}>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Command className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">Piscine Management</span>
+                  <span className="truncate text-xs">42 School Dashboard</span>
+                </div>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Coming Soon</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {disabledItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton disabled className="opacity-50 cursor-not-allowed">
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Administration</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavMain items={data.navMain} onLinkClick={handleLinkClick} />
+        <NavProjects projects={data.projects} onLinkClick={handleLinkClick} />
+        <NavSecondary items={data.navSecondary} onLinkClick={handleLinkClick} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter className="border-t px-6 py-4">
-        <div className="text-xs text-muted-foreground">
-          <p>Piscine Management v1.0</p>
-          <p>© 2024 Internal Tool</p>
-        </div>
+      <SidebarFooter>
+        <NavUser user={data.user} onLinkClick={handleLinkClick} />
       </SidebarFooter>
     </Sidebar>
   )

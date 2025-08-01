@@ -11,27 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Upload,
-  FileText,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Download,
-  Users,
-  GraduationCap,
-  Trophy,
-  RefreshCw,
-} from "lucide-react"
+import { Upload, FileText, CheckCircle, XCircle, Download, Users, GraduationCap, Trophy, RefreshCw } from "lucide-react"
 
 interface ImportResult {
   success: boolean
   message: string
-  data?: any[]
+  stats?: {
+    total_rows: number
+    created: number
+    updated: number
+    errors: number
+  }
   errors?: string[]
-  warnings?: string[]
 }
 
 export default function ImportPage() {
@@ -94,33 +86,36 @@ export default function ImportPage() {
         result = {
           success: true,
           message: "Successfully imported student data",
-          data: [
-            { name: "John Doe", email: "john@example.com", status: "imported" },
-            { name: "Jane Smith", email: "jane@example.com", status: "imported" },
-            { name: "Bob Wilson", email: "bob@example.com", status: "updated" },
-          ],
-          warnings: ["2 students already existed and were updated"],
+          stats: {
+            total_rows: 45,
+            created: 40,
+            updated: 5,
+            errors: 0,
+          },
         }
         break
       case "grades":
         result = {
           success: true,
           message: "Successfully imported exam grades",
-          data: [
-            { student: "John Doe", exam: "Exam 01", grade: 85, status: "imported" },
-            { student: "Jane Smith", exam: "Exam 01", grade: 92, status: "imported" },
-          ],
-          warnings: ["1 grade was overwritten"],
+          stats: {
+            total_rows: 180,
+            created: 175,
+            updated: 5,
+            errors: 0,
+          },
         }
         break
       case "rush_teams":
         result = {
           success: true,
           message: "Successfully imported rush team assignments",
-          data: [
-            { team: "Team Alpha", members: "John, Jane, Bob", project: "Square", status: "imported" },
-            { team: "Team Beta", members: "Alice, Charlie, David", project: "Square", status: "imported" },
-          ],
+          stats: {
+            total_rows: 12,
+            created: 12,
+            updated: 0,
+            errors: 0,
+          },
         }
         break
       default:
@@ -140,20 +135,23 @@ export default function ImportPage() {
 
     switch (type) {
       case "students":
-        csvContent = "username,name,email,uuid,age,gender,campus,coding_level,occupation\n"
-        csvContent += "john.doe,John DOE,john@example.com,uuid-123,23,M,Paris,Beginner,Student\n"
-        csvContent += "jane.smith,Jane SMITH,jane@example.com,uuid-456,24,F,London,Intermediate,Developer"
+        csvContent = "uuid,username,name,email,profile_image_url\n"
+        csvContent +=
+          "f11517a7-50a0-410e-bdb4-5910269ebbda,yasser.al-agoul,Yasser AL-AGOUL,yk198620@gmail.com,https://example.com/image.jpg\n"
+        csvContent += "a22518b8-61b1-521f-cdc5-6021370fcceb,marie.dubois,Marie DUBOIS,marie.dubois@email.com,"
         break
       case "grades":
-        csvContent = "username,exam_name,grade,validated\n"
-        csvContent += "john.doe,Exam 00,45,false\n"
-        csvContent += "john.doe,Exam 01,78,true\n"
-        csvContent += "jane.smith,Exam 00,89,true"
+        csvContent = "uuid,exam_name,grade,validated\n"
+        csvContent += "f11517a7-50a0-410e-bdb4-5910269ebbda,exam00,45,false\n"
+        csvContent += "f11517a7-50a0-410e-bdb4-5910269ebbda,exam01,78,true\n"
+        csvContent += "f11517a7-50a0-410e-bdb4-5910269ebbda,final_exam,89,true"
         break
       case "rush_teams":
-        csvContent = "team_name,project_type,member1,member2,member3,member4\n"
-        csvContent += "Team Alpha,square,john.doe,jane.smith,bob.wilson,\n"
-        csvContent += "Team Beta,skyscraper,alice.cooper,charlie.brown,david.jones,eve.taylor"
+        csvContent = "team_name,project_name,member1_uuid,member2_uuid,member3_uuid,member4_uuid,grade\n"
+        csvContent +=
+          "Team Alpha,square,f11517a7-50a0-410e-bdb4-5910269ebbda,a22518b8-61b1-521f-cdc5-6021370fcceb,,,85\n"
+        csvContent +=
+          "Team Beta,skyscraper,b33629c9-72c2-632g-ded6-7132481gddfc,c4473ada-83d3-743h-efe7-8243592heegc,,,92"
         break
     }
 
@@ -164,32 +162,6 @@ export default function ImportPage() {
     a.download = `${type}_template.csv`
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  const getImportTypeIcon = (type: string) => {
-    switch (type) {
-      case "students":
-        return <Users className="h-4 w-4" />
-      case "grades":
-        return <GraduationCap className="h-4 w-4" />
-      case "rush_teams":
-        return <Trophy className="h-4 w-4" />
-      default:
-        return <FileText className="h-4 w-4" />
-    }
-  }
-
-  const getImportTypeDescription = (type: string) => {
-    switch (type) {
-      case "students":
-        return "Import basic student information including personal details and contact info"
-      case "grades":
-        return "Import exam grades and validation status for students"
-      case "rush_teams":
-        return "Import rush project team assignments and member groupings"
-      default:
-        return "Select an import type"
-    }
   }
 
   return (
@@ -205,7 +177,6 @@ export default function ImportPage() {
         <TabsList>
           <TabsTrigger value="upload">Upload Data</TabsTrigger>
           <TabsTrigger value="templates">Download Templates</TabsTrigger>
-          <TabsTrigger value="history">Import History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
@@ -247,7 +218,6 @@ export default function ImportPage() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-sm text-muted-foreground">{getImportTypeDescription(importType)}</p>
                 </div>
 
                 <div className="space-y-2">
@@ -338,18 +308,21 @@ export default function ImportPage() {
                       <AlertDescription>{importResult.message}</AlertDescription>
                     </Alert>
 
-                    {importResult.warnings && importResult.warnings.length > 0 && (
-                      <Alert className="border-yellow-200 bg-yellow-50">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        <AlertTitle>Warnings</AlertTitle>
-                        <AlertDescription>
-                          <ul className="list-disc list-inside space-y-1">
-                            {importResult.warnings.map((warning, index) => (
-                              <li key={index}>{warning}</li>
-                            ))}
-                          </ul>
-                        </AlertDescription>
-                      </Alert>
+                    {importResult.stats && (
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Total Rows:</span> {importResult.stats.total_rows}
+                        </div>
+                        <div>
+                          <span className="font-medium">Created:</span> {importResult.stats.created}
+                        </div>
+                        <div>
+                          <span className="font-medium">Updated:</span> {importResult.stats.updated}
+                        </div>
+                        <div>
+                          <span className="font-medium">Errors:</span> {importResult.stats.errors}
+                        </div>
+                      </div>
                     )}
 
                     {importResult.errors && importResult.errors.length > 0 && (
@@ -364,34 +337,6 @@ export default function ImportPage() {
                           </ul>
                         </AlertDescription>
                       </Alert>
-                    )}
-
-                    {importResult.data && importResult.data.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Imported Data Summary</h4>
-                        <div className="border rounded-md overflow-hidden">
-                          <Table>
-                            <TableBody>
-                              {importResult.data.slice(0, 5).map((item, index) => (
-                                <TableRow key={index}>
-                                  {Object.entries(item).map(([key, value]) => (
-                                    <TableCell key={key} className="text-xs">
-                                      <div>
-                                        <span className="font-medium">{key}:</span> {String(value)}
-                                      </div>
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        {importResult.data.length > 5 && (
-                          <p className="text-sm text-muted-foreground">
-                            ... and {importResult.data.length - 5} more items
-                          </p>
-                        )}
-                      </div>
                     )}
                   </div>
                 )}
@@ -408,22 +353,19 @@ export default function ImportPage() {
                   <Users className="h-5 w-5" />
                   Student Data Template
                 </CardTitle>
-                <CardDescription>Template for importing basic student information</CardDescription>
+                <CardDescription>Template for importing initial student information</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <p>
-                    <strong>Includes:</strong>
+                    <strong>Required Fields:</strong>
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                    <li>UUID (unique identifier)</li>
                     <li>Username</li>
                     <li>Full name</li>
                     <li>Email address</li>
-                    <li>UUID</li>
-                    <li>Age, gender</li>
-                    <li>Campus location</li>
-                    <li>Coding level</li>
-                    <li>Occupation</li>
+                    <li>Profile image URL (optional)</li>
                   </ul>
                 </div>
                 <Button onClick={() => downloadTemplate("students")} className="w-full mt-4" variant="outline">
@@ -444,22 +386,16 @@ export default function ImportPage() {
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <p>
-                    <strong>Includes:</strong>
+                    <strong>Required Fields:</strong>
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                    <li>Student username</li>
-                    <li>Exam name/type</li>
-                    <li>Grade score</li>
-                    <li>Validation status</li>
+                    <li>Student UUID</li>
+                    <li>Exam name (exam00, exam01, exam02, final_exam)</li>
+                    <li>Grade (0-100)</li>
+                    <li>Validated (true/false)</li>
                   </ul>
                 </div>
-                <Button
-                  onClick={() => downloadTemplate("grades")}
-                  className="w-full mt-4"
-                  variant="outline"
-                  className="w-full mt-4"
-                  variant="outline"
-                >
+                <Button onClick={() => downloadTemplate("grades")} className="w-full mt-4" variant="outline">
                   <Download className="mr-2 h-4 w-4" />
                   Download Template
                 </Button>
@@ -477,13 +413,13 @@ export default function ImportPage() {
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <p>
-                    <strong>Includes:</strong>
+                    <strong>Required Fields:</strong>
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                     <li>Team name</li>
-                    <li>Project type</li>
-                    <li>Team members</li>
-                    <li>Member usernames</li>
+                    <li>Project type (square, skyscraper, rosetta_stone)</li>
+                    <li>Member UUIDs (up to 4 members)</li>
+                    <li>Team grade (optional)</li>
                   </ul>
                 </div>
                 <Button onClick={() => downloadTemplate("rush_teams")} className="w-full mt-4" variant="outline">
@@ -508,111 +444,20 @@ export default function ImportPage() {
                     <li>First row must contain column headers</li>
                     <li>Use UTF-8 encoding for special characters</li>
                     <li>Maximum file size: 10MB</li>
-                    <li>Maximum 1000 rows per import</li>
+                    <li>UUIDs must be unique across the system</li>
                   </ul>
                 </div>
                 <div className="space-y-2">
                   <h4 className="font-medium">Data Validation</h4>
                   <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                     <li>Email addresses must be valid format</li>
-                    <li>UUIDs must be unique across system</li>
                     <li>Usernames must be unique and lowercase</li>
                     <li>Grades must be numeric (0-100)</li>
-                    <li>Required fields cannot be empty</li>
+                    <li>Exam names must match: exam00, exam01, exam02, final_exam</li>
+                    <li>Rush projects: square, skyscraper, rosetta_stone</li>
                   </ul>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Imports</CardTitle>
-              <CardDescription>View your recent import activities and their status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>File Name</TableHead>
-                    <TableHead>Records</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>2024-01-15 14:30</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Students
-                      </div>
-                    </TableCell>
-                    <TableCell>students_batch_1.csv</TableCell>
-                    <TableCell>45</TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-100 text-green-800">
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Success
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>2024-01-14 09:15</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <GraduationCap className="h-4 w-4" />
-                        Grades
-                      </div>
-                    </TableCell>
-                    <TableCell>exam_01_grades.csv</TableCell>
-                    <TableCell>42</TableCell>
-                    <TableCell>
-                      <Badge className="bg-yellow-100 text-yellow-800">
-                        <AlertCircle className="mr-1 h-3 w-3" />
-                        Warning
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>2024-01-13 16:45</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Trophy className="h-4 w-4" />
-                        Rush Teams
-                      </div>
-                    </TableCell>
-                    <TableCell>rush_square_teams.csv</TableCell>
-                    <TableCell>12</TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-100 text-green-800">
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Success
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
             </CardContent>
           </Card>
         </TabsContent>
