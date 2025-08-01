@@ -17,10 +17,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Plus, MessageSquare, User, Users, Calendar, Filter, Edit, Trash2 } from "lucide-react"
+import { Search, Plus, MessageSquare, User, Users, Edit, Trash2 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-// Mock notes data
+// Mock notes data focused on core features
 const mockNotes = [
   {
     id: 1,
@@ -28,82 +28,30 @@ const mockNotes = [
     targetId: "f11517a7-50a0-410e-bdb4-5910269ebbda",
     targetName: "Yasser AL-AGOUL",
     title: "Strong problem-solving skills",
-    content:
-      "Demonstrated excellent problem-solving abilities during C programming projects. Shows good understanding of algorithms and data structures.",
-    author: "John Doe",
-    authorRole: "Staff",
+    content: "Demonstrated excellent problem-solving abilities during C programming projects.",
+    noteType: "general",
+    authorName: "John Doe",
     date: "2024-01-15T10:30:00Z",
-    category: "performance",
-    priority: "normal",
   },
   {
     id: 2,
-    type: "student",
-    targetId: "f11517a7-50a0-410e-bdb4-5910269ebbda",
-    targetName: "Yasser AL-AGOUL",
-    title: "Collaboration during rush",
-    content:
-      "Good teamwork and communication skills during the rush project. Helped other team members when they were struggling.",
-    author: "Jane Smith",
-    authorRole: "Staff",
+    type: "rush_team",
+    targetId: "team-alpha",
+    targetName: "Team Alpha (Square)",
+    title: "Excellent teamwork",
+    content: "The team showed outstanding collaboration during the square rush project.",
+    noteType: "rush_specific",
+    authorName: "Jane Smith",
     date: "2024-01-10T14:20:00Z",
-    category: "teamwork",
-    priority: "normal",
-  },
-  {
-    id: 3,
-    type: "rush_group",
-    targetId: "rush-group-1",
-    targetName: "Rush Group Alpha",
-    title: "Group dynamics assessment",
-    content:
-      "The group showed excellent collaboration. All members contributed equally to the project. Strong leadership from Marie and good support from other members.",
-    author: "Mike Johnson",
-    authorRole: "Staff",
-    date: "2024-01-08T16:45:00Z",
-    category: "evaluation",
-    priority: "high",
-  },
-  {
-    id: 4,
-    type: "student",
-    targetId: "a22518b8-61b1-521f-cdc5-6021370fcceb",
-    targetName: "Marie DUBOIS",
-    title: "Outstanding performance",
-    content:
-      "Consistently delivers high-quality work. Shows initiative and helps other students. Recommended for advanced track.",
-    author: "Sarah Wilson",
-    authorRole: "Staff",
-    date: "2024-01-12T09:15:00Z",
-    category: "performance",
-    priority: "high",
-  },
-  {
-    id: 5,
-    type: "student",
-    targetId: "b33629c9-72c2-632g-ded6-7132481gddfc",
-    targetName: "John SMITH",
-    title: "Needs additional support",
-    content:
-      "Struggling with advanced concepts. Recommended for additional tutoring sessions. Shows willingness to learn but needs more guidance.",
-    author: "Tom Brown",
-    authorRole: "Staff",
-    date: "2024-01-14T11:30:00Z",
-    category: "support",
-    priority: "high",
   },
 ]
 
-const categories = ["performance", "teamwork", "evaluation", "support", "behavior", "technical"]
-const priorities = ["low", "normal", "high"]
-const noteTypes = ["student", "rush_group"]
+const noteTypes = ["general", "rush_specific"]
 
 export default function NotesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [priorityFilter, setPriorityFilter] = useState("all")
-  const [authorFilter, setAuthorFilter] = useState("all")
+  const [noteTypeFilter, setNoteTypeFilter] = useState("all")
   const [notes, setNotes] = useState(mockNotes)
   const [isAddingNote, setIsAddingNote] = useState(false)
   const [editingNote, setEditingNote] = useState<any>(null)
@@ -114,8 +62,7 @@ export default function NotesPage() {
     targetName: "",
     title: "",
     content: "",
-    category: "performance",
-    priority: "normal",
+    noteType: "general",
   })
 
   const filteredNotes = useMemo(() => {
@@ -123,27 +70,21 @@ export default function NotesPage() {
       const matchesSearch =
         note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.targetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.author.toLowerCase().includes(searchTerm.toLowerCase())
+        note.targetName.toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchesType = typeFilter === "all" || note.type === typeFilter
-      const matchesCategory = categoryFilter === "all" || note.category === categoryFilter
-      const matchesPriority = priorityFilter === "all" || note.priority === priorityFilter
-      const matchesAuthor = authorFilter === "all" || note.author === authorFilter
+      const matchesNoteType = noteTypeFilter === "all" || note.noteType === noteTypeFilter
 
-      return matchesSearch && matchesType && matchesCategory && matchesPriority && matchesAuthor
+      return matchesSearch && matchesType && matchesNoteType
     })
-  }, [searchTerm, typeFilter, categoryFilter, priorityFilter, authorFilter, notes])
-
-  const authors = [...new Set(notes.map((note) => note.author))]
+  }, [searchTerm, typeFilter, noteTypeFilter, notes])
 
   const handleAddNote = () => {
     const note = {
       id: notes.length + 1,
       ...newNote,
       targetId: `target-${Date.now()}`,
-      author: "Current Staff",
-      authorRole: "Staff",
+      authorName: "Current Staff",
       date: new Date().toISOString(),
     }
     setNotes([note, ...notes])
@@ -152,8 +93,7 @@ export default function NotesPage() {
       targetName: "",
       title: "",
       content: "",
-      category: "performance",
-      priority: "normal",
+      noteType: "general",
     })
     setIsAddingNote(false)
   }
@@ -171,44 +111,12 @@ export default function NotesPage() {
     setNotes(notes.filter((note) => note.id !== noteId))
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "normal":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "low":
-        return "bg-gray-100 text-gray-800 border-gray-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "performance":
-        return "bg-green-100 text-green-800"
-      case "teamwork":
-        return "bg-purple-100 text-purple-800"
-      case "evaluation":
-        return "bg-orange-100 text-orange-800"
-      case "support":
-        return "bg-yellow-100 text-yellow-800"
-      case "behavior":
-        return "bg-pink-100 text-pink-800"
-      case "technical":
-        return "bg-indigo-100 text-indigo-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Notes</h2>
-          <p className="text-muted-foreground">Manage notes for students and rush groups</p>
+          <p className="text-muted-foreground">Manage notes for students and rush teams</p>
         </div>
         <Dialog open={isAddingNote} onOpenChange={setIsAddingNote}>
           <DialogTrigger asChild>
@@ -220,7 +128,7 @@ export default function NotesPage() {
           <DialogContent className="sm:max-w-[525px]">
             <DialogHeader>
               <DialogTitle>Add New Note</DialogTitle>
-              <DialogDescription>Create a new note for a student or rush group.</DialogDescription>
+              <DialogDescription>Create a new note for a student or rush team.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -233,20 +141,20 @@ export default function NotesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="rush_group">Rush Group</SelectItem>
+                    <SelectItem value="rush_team">Rush Team</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="targetName" className="text-right">
-                  {newNote.type === "student" ? "Student" : "Group"}
+                  {newNote.type === "student" ? "Student" : "Team"}
                 </Label>
                 <Input
                   id="targetName"
                   value={newNote.targetName}
                   onChange={(e) => setNewNote({ ...newNote, targetName: e.target.value })}
                   className="col-span-3"
-                  placeholder={newNote.type === "student" ? "Student name" : "Group name"}
+                  placeholder={newNote.type === "student" ? "Student name" : "Team name"}
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -262,36 +170,16 @@ export default function NotesPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="category" className="text-right">
-                  Category
+                <Label htmlFor="noteType" className="text-right">
+                  Note Type
                 </Label>
-                <Select value={newNote.category} onValueChange={(value) => setNewNote({ ...newNote, category: value })}>
+                <Select value={newNote.noteType} onValueChange={(value) => setNewNote({ ...newNote, noteType: value })}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category.charAt(0).toUpperCase() + category.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="priority" className="text-right">
-                  Priority
-                </Label>
-                <Select value={newNote.priority} onValueChange={(value) => setNewNote({ ...newNote, priority: value })}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorities.map((priority) => (
-                      <SelectItem key={priority} value={priority}>
-                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="rush_specific">Rush Specific</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -342,31 +230,30 @@ export default function NotesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Group Notes</CardTitle>
+            <CardTitle className="text-sm font-medium">Team Notes</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{notes.filter((n) => n.type === "rush_group").length}</div>
-            <p className="text-xs text-muted-foreground">Rush group notes</p>
+            <div className="text-2xl font-bold">{notes.filter((n) => n.type === "rush_team").length}</div>
+            <p className="text-xs text-muted-foreground">Rush team notes</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">High Priority</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Rush Specific</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{notes.filter((n) => n.priority === "high").length}</div>
-            <p className="text-xs text-muted-foreground">Require attention</p>
+            <div className="text-2xl font-bold">{notes.filter((n) => n.noteType === "rush_specific").length}</div>
+            <p className="text-xs text-muted-foreground">Rush evaluation notes</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Search and Filter */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+            <Search className="h-5 w-5" />
             Search & Filter Notes
           </CardTitle>
         </CardHeader>
@@ -375,7 +262,7 @@ export default function NotesPage() {
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search notes by title, content, student name, or author..."
+                placeholder="Search notes by title, content, or target name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
@@ -389,49 +276,18 @@ export default function NotesPage() {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="rush_group">Rush Group</SelectItem>
+                  <SelectItem value="rush_team">Rush Team</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={noteTypeFilter} onValueChange={setNoteTypeFilter}>
                 <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Category" />
+                  <SelectValue placeholder="Note Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  {priorities.map((priority) => (
-                    <SelectItem key={priority} value={priority}>
-                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={authorFilter} onValueChange={setAuthorFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Author" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Authors</SelectItem>
-                  {authors.map((author) => (
-                    <SelectItem key={author} value={author}>
-                      {author}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Note Types</SelectItem>
+                  <SelectItem value="general">General</SelectItem>
+                  <SelectItem value="rush_specific">Rush Specific</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -451,15 +307,14 @@ export default function NotesPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-lg">{note.title}</CardTitle>
-                    <Badge className={getPriorityColor(note.priority)}>{note.priority}</Badge>
-                    <Badge className={getCategoryColor(note.category)}>{note.category}</Badge>
                     <Badge variant="outline">
                       {note.type === "student" ? <User className="mr-1 h-3 w-3" /> : <Users className="mr-1 h-3 w-3" />}
-                      {note.type === "student" ? "Student" : "Group"}
+                      {note.type === "student" ? "Student" : "Team"}
                     </Badge>
+                    <Badge variant="secondary">{note.noteType}</Badge>
                   </div>
                   <CardDescription>
-                    {note.type === "student" ? "Student: " : "Group: "}
+                    {note.type === "student" ? "Student: " : "Team: "}
                     <span className="font-medium">{note.targetName}</span>
                   </CardDescription>
                 </div>
@@ -479,15 +334,13 @@ export default function NotesPage() {
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
                     <AvatarFallback>
-                      {note.author
+                      {note.authorName
                         .split(" ")
                         .map((n) => n[0])
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
-                  <span>
-                    {note.author} • {note.authorRole}
-                  </span>
+                  <span>{note.authorName}</span>
                 </div>
                 <span>{new Date(note.date).toLocaleDateString()}</span>
               </div>
@@ -501,9 +354,9 @@ export default function NotesPage() {
               <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No notes found</h3>
               <p className="text-muted-foreground text-center mb-4">
-                {searchTerm || typeFilter !== "all" || categoryFilter !== "all" || priorityFilter !== "all"
+                {searchTerm || typeFilter !== "all" || noteTypeFilter !== "all"
                   ? "Try adjusting your search criteria or filters."
-                  : "Start by adding your first note about a student or rush group."}
+                  : "Start by adding your first note about a student or rush team."}
               </p>
               <Button onClick={() => setIsAddingNote(true)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -535,42 +388,19 @@ export default function NotesPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-category" className="text-right">
-                  Category
+                <Label htmlFor="edit-noteType" className="text-right">
+                  Note Type
                 </Label>
                 <Select
-                  value={editingNote.category}
-                  onValueChange={(value) => setEditingNote({ ...editingNote, category: value })}
+                  value={editingNote.noteType}
+                  onValueChange={(value) => setEditingNote({ ...editingNote, noteType: value })}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category.charAt(0).toUpperCase() + category.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-priority" className="text-right">
-                  Priority
-                </Label>
-                <Select
-                  value={editingNote.priority}
-                  onValueChange={(value) => setEditingNote({ ...editingNote, priority: value })}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorities.map((priority) => (
-                      <SelectItem key={priority} value={priority}>
-                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="rush_specific">Rush Specific</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

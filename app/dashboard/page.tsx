@@ -31,7 +31,40 @@ const mockStudents = [
     communication: 2.9,
     professionalism: 2.9,
   },
-  // Add more mock students as needed
+  {
+    uuid: "a22628b8-61b1-521f-cec5-6021370fcceb",
+    username: "john.doe",
+    name: "John DOE",
+    email: "john.doe@example.com",
+    level: 3.8,
+    examGrades: { exam00: 45, exam01: 67, exam02: 78, finalExam: 82 },
+    finalExamValidated: true,
+    rushesValidated: "2/2",
+    validatedProjects: 18,
+    age: 25,
+    gender: "M",
+    codingLevel: "High",
+    performance: 4.2,
+    communication: 3.8,
+    professionalism: 4.1,
+  },
+  {
+    uuid: "b33739c9-72c2-632g-ded6-7132481gddfc",
+    username: "jane.smith",
+    name: "Jane SMITH",
+    email: "jane.smith@example.com",
+    level: 2.1,
+    examGrades: { exam00: 23, exam01: 34, exam02: 45, finalExam: 28 },
+    finalExamValidated: false,
+    rushesValidated: "0/2",
+    validatedProjects: 8,
+    age: 22,
+    gender: "F",
+    codingLevel: "Low",
+    performance: 2.1,
+    communication: 2.5,
+    professionalism: 2.3,
+  },
 ]
 
 export default function DashboardPage() {
@@ -61,7 +94,7 @@ export default function DashboardPage() {
 
       return matchesSearch && matchesGrade && matchesExam && matchesRush
     })
-  }, [searchTerm, gradeFilter, examFilter, rushFilter, mockStudents])
+  }, [searchTerm, gradeFilter, examFilter, rushFilter])
 
   const handleExport = () => {
     const csvContent = [

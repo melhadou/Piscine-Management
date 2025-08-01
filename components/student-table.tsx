@@ -1,8 +1,10 @@
 "use client"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Eye, MessageSquare, MapPin } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Eye, CheckCircle, XCircle } from "lucide-react"
 import Link from "next/link"
 
 interface Student {
@@ -18,12 +20,12 @@ interface Student {
     finalExam: number
   }
   finalExamValidated: boolean
-  rushesValidated: string
-  validatedProjects: number
-  codingLevel: string
-  campus?: string
-  age?: number
-  gender?: string
+  rushParticipation: Array<{
+    project: string
+    team: string
+    grade: number
+  }>
+  profileImage?: string
 }
 
 interface StudentTableProps {
@@ -31,40 +33,12 @@ interface StudentTableProps {
 }
 
 export function StudentTable({ students }: StudentTableProps) {
-  const getStatusColor = (student: Student) => {
-    if (student.finalExamValidated && student.level >= 3.0) {
-      return "bg-green-100 text-green-800 border-green-200"
-    }
-    if (!student.finalExamValidated && student.level >= 2.5) {
-      return "bg-yellow-100 text-yellow-800 border-yellow-200"
-    }
-    return "bg-red-100 text-red-800 border-red-200"
+  const getStatusColor = (validated: boolean) => {
+    return validated ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
   }
 
-  const getStatusText = (student: Student) => {
-    if (student.finalExamValidated && student.level >= 3.0) {
-      return "Recommended"
-    }
-    if (!student.finalExamValidated && student.level >= 2.5) {
-      return "Review"
-    }
-    return "Not Recommended"
-  }
-
-  const getCodingLevelColor = (level: string) => {
-    switch (level.toLowerCase()) {
-      case "expert":
-        return "bg-purple-100 text-purple-800"
-      case "advanced":
-        return "bg-blue-100 text-blue-800"
-      case "medium":
-      case "intermediate":
-        return "bg-green-100 text-green-800"
-      case "beginner":
-        return "bg-orange-100 text-orange-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
+  const getStatusIcon = (validated: boolean) => {
+    return validated ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />
   }
 
   return (
@@ -75,9 +49,7 @@ export function StudentTable({ students }: StudentTableProps) {
             <TableHead>Student</TableHead>
             <TableHead>Level</TableHead>
             <TableHead>Final Exam</TableHead>
-            <TableHead>Rush Projects</TableHead>
-            <TableHead>Coding Level</TableHead>
-            <TableHead>Campus</TableHead>
+            <TableHead>Rush Participation</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -85,52 +57,66 @@ export function StudentTable({ students }: StudentTableProps) {
         <TableBody>
           {students.map((student) => (
             <TableRow key={student.uuid} className={student.finalExamValidated ? "bg-green-50" : ""}>
-              <TableCell className="font-medium">
-                <div>
-                  <div className="font-medium">{student.name}</div>
-                  <div className="text-sm text-muted-foreground">{student.username}</div>
-                  <div className="text-xs text-muted-foreground">{student.email}</div>
-                </div>
-              </TableCell>
               <TableCell>
-                <Badge variant="outline">{student.level}</Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm">{student.examGrades.finalExam}</span>
-                  {student.finalExamValidated ? (
-                    <Badge className="bg-green-100 text-green-800">✓</Badge>
-                  ) : (
-                    <Badge variant="destructive">✗</Badge>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>{student.rushesValidated}</TableCell>
-              <TableCell>
-                <Badge className={getCodingLevelColor(student.codingLevel)}>{student.codingLevel}</Badge>
-              </TableCell>
-              <TableCell>
-                {student.campus && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-sm">{student.campus}</span>
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={student.profileImage || "/placeholder.svg"} alt={student.name} />
+                    <AvatarFallback>
+                      {student.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">{student.name}</div>
+                    <div className="text-sm text-muted-foreground">{student.username}</div>
+                    <div className="text-xs text-muted-foreground">{student.email}</div>
                   </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="font-medium">{student.level}</div>
+              </TableCell>
+              <TableCell>
+                <div className="space-y-1">
+                  <div className="text-sm">
+                    <span className="font-medium">Grade: {student.examGrades.finalExam}</span>
+                  </div>
+                  <Badge className={getStatusColor(student.finalExamValidated)}>
+                    {getStatusIcon(student.finalExamValidated)}
+                    <span className="ml-1">{student.finalExamValidated ? "Validated" : "Not Validated"}</span>
+                  </Badge>
+                </div>
+              </TableCell>
+              <TableCell>
+                {student.rushParticipation.length > 0 ? (
+                  <div className="space-y-1">
+                    {student.rushParticipation.map((rush, index) => (
+                      <div key={index} className="text-sm">
+                        <div className="font-medium">{rush.project}</div>
+                        <div className="text-muted-foreground">
+                          {rush.team} - Grade: {rush.grade}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground text-sm">No participation</span>
                 )}
               </TableCell>
               <TableCell>
-                <Badge className={getStatusColor(student)}>{getStatusText(student)}</Badge>
+                <Badge className={getStatusColor(student.finalExamValidated)}>
+                  {student.finalExamValidated ? "Recommended" : "Review Required"}
+                </Badge>
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex items-center justify-end space-x-2">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/student/${student.uuid}`}>
-                      <Eye className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <MessageSquare className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/student/${student.uuid}`}>
+                    <Eye className="h-4 w-4" />
+                    <span className="sr-only">View profile</span>
+                  </Link>
+                </Button>
               </TableCell>
             </TableRow>
           ))}

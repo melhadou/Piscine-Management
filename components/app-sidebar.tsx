@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Settings, Users, Upload, BarChart3, FileText, Trophy } from "lucide-react"
+import { Home, Users, Upload, FileText, Settings } from "lucide-react"
 import Link from "next/link"
 
 import {
@@ -16,7 +16,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar"
 
-// Menu items.
+// Main navigation items
 const items = [
   {
     title: "Dashboard",
@@ -40,21 +40,6 @@ const items = [
   },
 ]
 
-const disabledItems = [
-  {
-    title: "Analytics",
-    url: "#",
-    icon: BarChart3,
-    disabled: true,
-  },
-  {
-    title: "Rush Projects",
-    url: "#",
-    icon: Trophy,
-    disabled: true,
-  },
-]
-
 const adminItems = [
   {
     title: "Settings",
@@ -73,13 +58,13 @@ export function AppSidebar() {
           </div>
           <div>
             <h2 className="text-lg font-semibold">Piscine Manager</h2>
-            <p className="text-xs text-muted-foreground">Student Management</p>
+            <p className="text-xs text-muted-foreground">Candidate Evaluation</p>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -89,21 +74,6 @@ export function AppSidebar() {
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Coming Soon</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {disabledItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton disabled className="opacity-50 cursor-not-allowed">
-                    <item.icon />
-                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
