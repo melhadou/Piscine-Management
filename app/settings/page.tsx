@@ -5,12 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Settings, Users, Shield, Database, Mail, Trash2, Plus, Save, Download } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,100 +27,125 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Settings,
+  Users,
+  Shield,
+  Database,
+  Plus,
+  Edit,
+  Trash2,
+  Download,
+  Upload,
+  RefreshCw,
+  Key,
+  UserCheck,
+} from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-// Mock data for staff members
+// Mock staff data
 const mockStaff = [
   {
-    id: "1",
-    name: "John Admin",
-    email: "john.admin@piscine.com",
+    id: 1,
+    name: "John Doe",
+    email: "john.doe@piscine.com",
     role: "admin",
-    avatar: "/placeholder-user.jpg",
-    lastLogin: "2024-01-15 14:30",
     status: "active",
+    lastLogin: "2024-01-15T10:30:00Z",
+    createdAt: "2023-09-01T08:00:00Z",
   },
   {
-    id: "2",
-    name: "Sarah Staff",
-    email: "sarah.staff@piscine.com",
+    id: 2,
+    name: "Jane Smith",
+    email: "jane.smith@piscine.com",
     role: "staff",
-    avatar: "/placeholder-user.jpg",
-    lastLogin: "2024-01-15 09:15",
     status: "active",
+    lastLogin: "2024-01-14T16:45:00Z",
+    createdAt: "2023-09-15T09:30:00Z",
   },
   {
-    id: "3",
-    name: "Mike Evaluator",
-    email: "mike.eval@piscine.com",
+    id: 3,
+    name: "Mike Johnson",
+    email: "mike.johnson@piscine.com",
     role: "evaluator",
-    avatar: "/placeholder-user.jpg",
-    lastLogin: "2024-01-14 16:45",
     status: "inactive",
+    lastLogin: "2024-01-10T12:20:00Z",
+    createdAt: "2023-10-01T14:15:00Z",
   },
+]
+
+const roles = [
+  { value: "admin", label: "Administrator", description: "Full system access" },
+  { value: "staff", label: "Staff Member", description: "Can manage students and notes" },
+  { value: "evaluator", label: "Evaluator", description: "Can only evaluate and add notes" },
 ]
 
 export default function SettingsPage() {
   const [staff, setStaff] = useState(mockStaff)
   const [isAddingStaff, setIsAddingStaff] = useState(false)
-  const [editingStaff, setEditingStaff] = useState<string | null>(null)
-  const [newStaff, setNewStaff] = useState({ name: "", email: "", role: "staff" })
+  const [editingStaff, setEditingStaff] = useState<any>(null)
   const [settings, setSettings] = useState({
     emailNotifications: true,
     autoBackup: true,
-    requireTwoFactor: false,
-    allowGuestAccess: false,
-    dataRetentionDays: 365,
+    guestAccess: false,
+    twoFactorAuth: false,
+    sessionTimeout: 30,
     maxFileSize: 10,
+    dataRetention: 365,
+  })
+
+  const [newStaff, setNewStaff] = useState({
+    name: "",
+    email: "",
+    role: "staff",
   })
 
   const handleAddStaff = () => {
-    if (newStaff.name && newStaff.email) {
-      const newMember = {
-        id: Date.now().toString(),
-        ...newStaff,
-        avatar: "/placeholder-user.jpg",
-        lastLogin: "Never",
-        status: "active",
-      }
-      setStaff([...staff, newMember])
-      setNewStaff({ name: "", email: "", role: "staff" })
-      setIsAddingStaff(false)
+    const staff_member = {
+      id: staff.length + 1,
+      ...newStaff,
+      status: "active",
+      lastLogin: null,
+      createdAt: new Date().toISOString(),
     }
+    setStaff([...staff, staff_member])
+    setNewStaff({ name: "", email: "", role: "staff" })
+    setIsAddingStaff(false)
   }
 
-  const handleDeleteStaff = (id: string) => {
-    setStaff(staff.filter((member) => member.id !== id))
+  const handleUpdateStaff = () => {
+    setStaff(staff.map((s) => (s.id === editingStaff.id ? editingStaff : s)))
+    setEditingStaff(null)
   }
 
-  const handleToggleStatus = (id: string) => {
-    setStaff(
-      staff.map((member) =>
-        member.id === id ? { ...member, status: member.status === "active" ? "inactive" : "active" } : member,
-      ),
+  const handleDeleteStaff = (staffId: number) => {
+    setStaff(staff.filter((s) => s.id !== staffId))
+  }
+
+  const handleToggleStatus = (staffId: number) => {
+    setStaff(staff.map((s) => (s.id === staffId ? { ...s, status: s.status === "active" ? "inactive" : "active" } : s)))
+  }
+
+  const getRoleBadge = (role: string) => {
+    const roleInfo = roles.find((r) => r.value === role)
+    const colors = {
+      admin: "bg-red-100 text-red-800",
+      staff: "bg-blue-100 text-blue-800",
+      evaluator: "bg-green-100 text-green-800",
+    }
+    return <Badge className={colors[role as keyof typeof colors]}>{roleInfo?.label || role}</Badge>
+  }
+
+  const getStatusBadge = (status: string) => {
+    return status === "active" ? (
+      <Badge className="bg-green-100 text-green-800">Active</Badge>
+    ) : (
+      <Badge variant="outline" className="border-red-300 text-red-700">
+        Inactive
+      </Badge>
     )
-  }
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "bg-red-100 text-red-800"
-      case "staff":
-        return "bg-blue-100 text-blue-800"
-      case "evaluator":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
   }
 
   return (
@@ -123,16 +153,16 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
-          <p className="text-muted-foreground">Manage your piscine dashboard configuration</p>
+          <p className="text-muted-foreground">Manage system settings and staff accounts</p>
         </div>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="staff">Staff Management</TabsTrigger>
+          <TabsTrigger value="staff">Staff</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="data">Data Management</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
@@ -142,7 +172,7 @@ export default function SettingsPage() {
                 <Settings className="h-5 w-5" />
                 General Settings
               </CardTitle>
-              <CardDescription>Configure general application settings</CardDescription>
+              <CardDescription>Configure general system preferences</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
@@ -152,10 +182,9 @@ export default function SettingsPage() {
                 </div>
                 <Switch
                   checked={settings.emailNotifications}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, emailNotifications: checked }))}
+                  onCheckedChange={(checked) => setSettings({ ...settings, emailNotifications: checked })}
                 />
               </div>
-              <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-base">Auto Backup</Label>
@@ -163,40 +192,29 @@ export default function SettingsPage() {
                 </div>
                 <Switch
                   checked={settings.autoBackup}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, autoBackup: checked }))}
+                  onCheckedChange={(checked) => setSettings({ ...settings, autoBackup: checked })}
                 />
               </div>
-              <Separator />
               <div className="space-y-2">
-                <Label htmlFor="retention">Data Retention (days)</Label>
+                <Label htmlFor="session-timeout">Session Timeout (minutes)</Label>
                 <Input
-                  id="retention"
+                  id="session-timeout"
                   type="number"
-                  value={settings.dataRetentionDays}
-                  onChange={(e) =>
-                    setSettings((prev) => ({ ...prev, dataRetentionDays: Number.parseInt(e.target.value) }))
-                  }
+                  value={settings.sessionTimeout}
+                  onChange={(e) => setSettings({ ...settings, sessionTimeout: Number.parseInt(e.target.value) })}
                   className="w-32"
                 />
-                <div className="text-sm text-muted-foreground">
-                  How long to keep student data after piscine completion
-                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="filesize">Max File Size (MB)</Label>
+                <Label htmlFor="max-file-size">Max File Size (MB)</Label>
                 <Input
-                  id="filesize"
+                  id="max-file-size"
                   type="number"
                   value={settings.maxFileSize}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, maxFileSize: Number.parseInt(e.target.value) }))}
+                  onChange={(e) => setSettings({ ...settings, maxFileSize: Number.parseInt(e.target.value) })}
                   className="w-32"
                 />
-                <div className="text-sm text-muted-foreground">Maximum size for CSV file uploads</div>
               </div>
-              <Button>
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -210,7 +228,7 @@ export default function SettingsPage() {
                     <Users className="h-5 w-5" />
                     Staff Management
                   </CardTitle>
-                  <CardDescription>Manage staff members and their permissions</CardDescription>
+                  <CardDescription>Manage staff accounts and permissions</CardDescription>
                 </div>
                 <Dialog open={isAddingStaff} onOpenChange={setIsAddingStaff}>
                   <DialogTrigger asChild>
@@ -219,53 +237,63 @@ export default function SettingsPage() {
                       Add Staff
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                       <DialogTitle>Add New Staff Member</DialogTitle>
-                      <DialogDescription>Add a new staff member to the piscine management system</DialogDescription>
+                      <DialogDescription>Create a new staff account with appropriate permissions.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">
+                          Name
+                        </Label>
                         <Input
                           id="name"
                           value={newStaff.name}
-                          onChange={(e) => setNewStaff((prev) => ({ ...prev, name: e.target.value }))}
-                          placeholder="Enter full name"
+                          onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                          className="col-span-3"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">
+                          Email
+                        </Label>
                         <Input
                           id="email"
                           type="email"
                           value={newStaff.email}
-                          onChange={(e) => setNewStaff((prev) => ({ ...prev, email: e.target.value }))}
-                          placeholder="Enter email address"
+                          onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                          className="col-span-3"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="role">Role</Label>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="role" className="text-right">
+                          Role
+                        </Label>
                         <Select
                           value={newStaff.role}
-                          onValueChange={(value) => setNewStaff((prev) => ({ ...prev, role: value }))}
+                          onValueChange={(value) => setNewStaff({ ...newStaff, role: value })}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="col-span-3">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="staff">Staff</SelectItem>
-                            <SelectItem value="evaluator">Evaluator</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
+                            {roles.map((role) => (
+                              <SelectItem key={role.value} value={role.value}>
+                                <div>
+                                  <div className="font-medium">{role.label}</div>
+                                  <div className="text-sm text-muted-foreground">{role.description}</div>
+                                </div>
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsAddingStaff(false)}>
-                        Cancel
+                      <Button onClick={handleAddStaff} disabled={!newStaff.name || !newStaff.email}>
+                        Add Staff Member
                       </Button>
-                      <Button onClick={handleAddStaff}>Add Staff Member</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -276,8 +304,7 @@ export default function SettingsPage() {
                 {staff.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
-                      <Avatar>
-                        <AvatarImage src={member.avatar || "/placeholder.svg"} />
+                      <Avatar className="h-10 w-10">
                         <AvatarFallback>
                           {member.name
                             .split(" ")
@@ -285,17 +312,22 @@ export default function SettingsPage() {
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
+                      <div className="space-y-1">
                         <div className="font-medium">{member.name}</div>
                         <div className="text-sm text-muted-foreground">{member.email}</div>
-                        <div className="text-xs text-muted-foreground">Last login: {member.lastLogin}</div>
+                        <div className="flex items-center gap-2">
+                          {getRoleBadge(member.role)}
+                          {getStatusBadge(member.status)}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Badge className={getRoleBadgeColor(member.role)}>{member.role}</Badge>
-                      <Badge variant={member.status === "active" ? "default" : "secondary"}>{member.status}</Badge>
                       <Button variant="outline" size="sm" onClick={() => handleToggleStatus(member.id)}>
+                        <UserCheck className="h-4 w-4 mr-1" />
                         {member.status === "active" ? "Deactivate" : "Activate"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditingStaff(member)}>
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -331,53 +363,40 @@ export default function SettingsPage() {
                 <Shield className="h-5 w-5" />
                 Security Settings
               </CardTitle>
-              <CardDescription>Configure security and access control settings</CardDescription>
+              <CardDescription>Configure security and access controls</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Require Two-Factor Authentication</Label>
-                  <div className="text-sm text-muted-foreground">
-                    Require all staff to use 2FA for enhanced security
-                  </div>
+                  <Label className="text-base">Two-Factor Authentication</Label>
+                  <div className="text-sm text-muted-foreground">Require 2FA for all staff accounts</div>
                 </div>
                 <Switch
-                  checked={settings.requireTwoFactor}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, requireTwoFactor: checked }))}
+                  checked={settings.twoFactorAuth}
+                  onCheckedChange={(checked) => setSettings({ ...settings, twoFactorAuth: checked })}
                 />
               </div>
-              <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Allow Guest Access</Label>
-                  <div className="text-sm text-muted-foreground">Allow read-only access for guest users</div>
+                  <Label className="text-base">Guest Access</Label>
+                  <div className="text-sm text-muted-foreground">Allow read-only access for guests</div>
                 </div>
                 <Switch
-                  checked={settings.allowGuestAccess}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, allowGuestAccess: checked }))}
+                  checked={settings.guestAccess}
+                  onCheckedChange={(checked) => setSettings({ ...settings, guestAccess: checked })}
                 />
               </div>
-              <Separator />
               <div className="space-y-4">
-                <h4 className="text-sm font-medium">Session Management</h4>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="text-2xl font-bold">24</div>
-                      <p className="text-xs text-muted-foreground">Active Sessions</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="text-2xl font-bold">7 days</div>
-                      <p className="text-xs text-muted-foreground">Session Timeout</p>
-                    </CardContent>
-                  </Card>
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  <Label className="text-base">Password Requirements</Label>
                 </div>
-                <Button variant="outline">
-                  <Shield className="mr-2 h-4 w-4" />
-                  Revoke All Sessions
-                </Button>
+                <div className="pl-6 space-y-2 text-sm text-muted-foreground">
+                  <div>• Minimum 8 characters</div>
+                  <div>• At least one uppercase letter</div>
+                  <div>• At least one number</div>
+                  <div>• At least one special character</div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -390,83 +409,124 @@ export default function SettingsPage() {
                 <Database className="h-5 w-5" />
                 Data Management
               </CardTitle>
-              <CardDescription>Manage data backup, export, and cleanup operations</CardDescription>
+              <CardDescription>Backup, export, and manage system data</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-2xl font-bold">1,247</div>
-                    <p className="text-xs text-muted-foreground">Total Students</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-2xl font-bold">3,891</div>
-                    <p className="text-xs text-muted-foreground">Total Notes</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-2xl font-bold">156 MB</div>
-                    <p className="text-xs text-muted-foreground">Database Size</p>
-                  </CardContent>
-                </Card>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Button variant="outline" className="h-20 flex-col bg-transparent">
+                  <Download className="h-6 w-6 mb-2" />
+                  Export All Data
+                </Button>
+                <Button variant="outline" className="h-20 flex-col bg-transparent">
+                  <Upload className="h-6 w-6 mb-2" />
+                  Import Data
+                </Button>
+                <Button variant="outline" className="h-20 flex-col bg-transparent">
+                  <RefreshCw className="h-6 w-6 mb-2" />
+                  Create Backup
+                </Button>
+                <Button variant="outline" className="h-20 flex-col bg-transparent">
+                  <Database className="h-6 w-6 mb-2" />
+                  Database Stats
+                </Button>
               </div>
-              <Separator />
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium">Backup & Export</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline">
-                    <Database className="mr-2 h-4 w-4" />
-                    Create Backup
-                  </Button>
-                  <Button variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export All Data
-                  </Button>
-                  <Button variant="outline">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Email Backup
-                  </Button>
+              <div className="space-y-2">
+                <Label htmlFor="data-retention">Data Retention (days)</Label>
+                <Input
+                  id="data-retention"
+                  type="number"
+                  value={settings.dataRetention}
+                  onChange={(e) => setSettings({ ...settings, dataRetention: Number.parseInt(e.target.value) })}
+                  className="w-32"
+                />
+                <div className="text-sm text-muted-foreground">
+                  How long to keep deleted records before permanent removal
                 </div>
-                <div className="text-sm text-muted-foreground">Last backup: January 15, 2024 at 3:00 AM</div>
               </div>
-              <Separator />
               <div className="space-y-4">
-                <h4 className="text-sm font-medium">Data Cleanup</h4>
-                <div className="flex flex-wrap gap-2">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Clean Old Data
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Clean Old Data</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will remove data older than {settings.dataRetentionDays} days. This action cannot be
-                          undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction>Clean Data</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  <Button variant="outline">
-                    <Database className="mr-2 h-4 w-4" />
-                    Optimize Database
-                  </Button>
+                <Label className="text-base">Database Statistics</Label>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="text-center p-4 border rounded">
+                    <div className="text-2xl font-bold">156</div>
+                    <div className="text-sm text-muted-foreground">Total Students</div>
+                  </div>
+                  <div className="text-center p-4 border rounded">
+                    <div className="text-2xl font-bold">342</div>
+                    <div className="text-sm text-muted-foreground">Total Notes</div>
+                  </div>
+                  <div className="text-center p-4 border rounded">
+                    <div className="text-2xl font-bold">28</div>
+                    <div className="text-sm text-muted-foreground">Rush Teams</div>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Staff Dialog */}
+      <Dialog open={!!editingStaff} onOpenChange={() => setEditingStaff(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogDescription>Update staff member information and permissions.</DialogDescription>
+          </DialogHeader>
+          {editingStaff && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="edit-name"
+                  value={editingStaff.name}
+                  onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-email" className="text-right">
+                  Email
+                </Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editingStaff.email}
+                  onChange={(e) => setEditingStaff({ ...editingStaff, email: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-role" className="text-right">
+                  Role
+                </Label>
+                <Select
+                  value={editingStaff.role}
+                  onValueChange={(value) => setEditingStaff({ ...editingStaff, role: value })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        <div>
+                          <div className="font-medium">{role.label}</div>
+                          <div className="text-sm text-muted-foreground">{role.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={handleUpdateStaff}>Update Staff Member</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

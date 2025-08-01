@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Mail, User, Calendar, Trophy, MessageSquare } from "lucide-react"
+import { ArrowLeft, Mail, User, MessageSquare } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useRef } from "react"
 
 // Mock student data - replace with actual data fetching
 const mockStudent = {
@@ -54,6 +54,8 @@ const mockNotes = [
 export default function StudentProfilePage({ params }: { params: { uuid: string } }) {
   const [newNote, setNewNote] = useState("")
   const [notes, setNotes] = useState(mockNotes)
+  const [activeTab, setActiveTab] = useState("overview")
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleAddNote = () => {
     if (newNote.trim()) {
@@ -67,6 +69,14 @@ export default function StudentProfilePage({ params }: { params: { uuid: string 
       setNotes([note, ...notes])
       setNewNote("")
     }
+  }
+
+  const handleQuickAddNote = () => {
+    setActiveTab("notes")
+    // Focus the textarea after a short delay to ensure the tab has switched
+    setTimeout(() => {
+      textareaRef.current?.focus()
+    }, 100)
   }
 
   return (
@@ -84,7 +94,7 @@ export default function StudentProfilePage({ params }: { params: { uuid: string 
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-6">
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="grades">Grades</TabsTrigger>
@@ -213,6 +223,7 @@ export default function StudentProfilePage({ params }: { params: { uuid: string 
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Textarea
+                    ref={textareaRef}
                     placeholder="Add a note about this student..."
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
@@ -252,17 +263,9 @@ export default function StudentProfilePage({ params }: { params: { uuid: string 
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button className="w-full bg-transparent" variant="outline">
+              <Button className="w-full bg-transparent" variant="outline" onClick={handleQuickAddNote}>
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Add Note
-              </Button>
-              <Button className="w-full bg-transparent" variant="outline">
-                <Trophy className="mr-2 h-4 w-4" />
-                Update Grades
-              </Button>
-              <Button className="w-full bg-transparent" variant="outline">
-                <Calendar className="mr-2 h-4 w-4" />
-                Schedule Review
               </Button>
             </CardContent>
           </Card>

@@ -1,5 +1,5 @@
-import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function SettingsLoading() {
   return (
@@ -17,7 +17,7 @@ export default function SettingsLoading() {
         <Card>
           <CardHeader>
             <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-4 w-72" />
           </CardHeader>
           <CardContent className="space-y-6">
             {Array.from({ length: 4 }).map((_, i) => (

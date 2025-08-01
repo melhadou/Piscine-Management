@@ -1,4 +1,7 @@
+"use client"
+
 import type React from "react"
+
 import type { LucideIcon } from "lucide-react"
 
 import {
@@ -11,6 +14,7 @@ import {
 
 export function NavSecondary({
   items,
+  onLinkClick,
   ...props
 }: {
   items: {
@@ -18,6 +22,7 @@ export function NavSecondary({
     url: string
     icon: LucideIcon
   }[]
+  onLinkClick?: () => void
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
     <SidebarGroup {...props}>
@@ -26,7 +31,7 @@ export function NavSecondary({
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild size="sm">
-                <a href={item.url}>
+                <a href={item.url} onClick={onLinkClick}>
                   <item.icon />
                   <span>{item.title}</span>
                 </a>

@@ -1,321 +1,309 @@
-# Piscine Management Dashboard - Backend API Documentation
+# Piscine Management Dashboard API Documentation
 
 ## Overview
-
-This document outlines the API endpoints needed for the Piscine Management Dashboard core features. The backend uses **Next.js App Router** with API routes and Server Actions.
+This document outlines the complete API structure and database schema for the Piscine Management Dashboard - a comprehensive system for managing student evaluations, notes, and rush assessments.
 
 ## Technology Stack
+- **Frontend**: Next.js 15 with App Router, React 18, TypeScript
+- **Backend**: Next.js API Routes and Server Actions
+- **Database**: Supabase PostgreSQL
+- **Authentication**: NextAuth.js v5 with Google OAuth
+- **File Storage**: Vercel Blob for CSV imports
+- **Styling**: Tailwind CSS with shadcn/ui components
 
-- **Frontend**: Next.js 14+ with App Router
-- **Backend**: Next.js API Routes + Server Actions
-- **Database**: PostgreSQL (Supabase recommended)
-- **Authentication**: NextAuth.js
-- **File Storage**: Vercel Blob for CSV uploads
+## 🏗️ Backend Architecture
 
-## Database Schema
+This project uses **Next.js 15 App Router** as a full-stack solution with:
+- **Database**: Supabase PostgreSQL
+- **Authentication**: NextAuth.js v5 with Google OAuth
+- **File Storage**: Vercel Blob for CSV imports
+- **API**: Next.js API Routes + Server Actions
 
-### Students Table
+## 📊 Database Schema
+
+### Core Tables
+
 \`\`\`sql
+-- Staff table for authentication
+CREATE TABLE staff (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  role VARCHAR(50) DEFAULT 'staff',
+  google_id VARCHAR(100),
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_staff_email ON staff(email);
+CREATE INDEX idx_staff_role ON staff(role);
+
+-- Students table
 CREATE TABLE students (
-  id SERIAL PRIMARY KEY,
-  uuid UUID UNIQUE NOT NULL,
-  username VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
-  profile_image_url TEXT,
-  level DECIMAL(3,1) DEFAULT 0.0,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  uuid VARCHAR(50) UNIQUE NOT NULL,
+  login VARCHAR(50) UNIQUE NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  phone VARCHAR(20),
+  campus VARCHAR(100),
+  level DECIMAL(4,2) DEFAULT 0.00,
+  wallet INTEGER DEFAULT 0,
+  correction_points INTEGER DEFAULT 5,
+  location VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'active',
+  pool_month VARCHAR(20),
+  pool_year INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-\`\`\`
 
-### Exam Grades Table
-\`\`\`sql
+CREATE INDEX idx_students_login ON students(login);
+CREATE INDEX idx_students_email ON students(email);
+CREATE INDEX idx_students_status ON students(status);
+CREATE INDEX idx_students_pool ON students(pool_month, pool_year);
+
+-- Exam grades table
 CREATE TABLE exam_grades (
-  id SERIAL PRIMARY KEY,
-  student_uuid UUID REFERENCES students(uuid) ON DELETE CASCADE,
-  exam_name VARCHAR(20) NOT NULL, -- 'exam00', 'exam01', 'exam02', 'final_exam'
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  exam_name VARCHAR(100) NOT NULL,
   grade INTEGER CHECK (grade >= 0 AND grade <= 100),
-  validated BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(student_uuid, exam_name)
+  max_grade INTEGER DEFAULT 100,
+  exam_date DATE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-\`\`\`
 
-### Rush Projects Table
-\`\`\`sql
-CREATE TABLE rush_projects (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(50) UNIQUE NOT NULL, -- 'square', 'skyscraper', 'rosetta_stone'
-  description TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-\`\`\`
+CREATE INDEX idx_exam_grades_student ON exam_grades(student_id);
+CREATE INDEX idx_exam_grades_exam ON exam_grades(exam_name);
+CREATE INDEX idx_exam_grades_date ON exam_grades(exam_date);
 
-### Rush Teams Table
-\`\`\`sql
-CREATE TABLE rush_teams (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  project_name VARCHAR(50) REFERENCES rush_projects(name),
-  grade INTEGER CHECK (grade >= 0 AND grade <= 100),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-\`\`\`
-
-### Rush Team Members Table
-\`\`\`sql
-CREATE TABLE rush_team_members (
-  id SERIAL PRIMARY KEY,
-  team_id INTEGER REFERENCES rush_teams(id) ON DELETE CASCADE,
-  student_uuid UUID REFERENCES students(uuid) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(team_id, student_uuid)
-);
-\`\`\`
-
-### Notes Table
-\`\`\`sql
+-- Notes table with categories and priorities
 CREATE TABLE notes (
-  id SERIAL PRIMARY KEY,
-  type VARCHAR(20) CHECK (type IN ('student', 'rush_team')) NOT NULL,
-  target_id VARCHAR(100) NOT NULL, -- student_uuid or team_id
-  target_name VARCHAR(100) NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
   title VARCHAR(200) NOT NULL,
   content TEXT NOT NULL,
-  note_type VARCHAR(20) CHECK (note_type IN ('general', 'rush_specific')) DEFAULT 'general',
-  author_name VARCHAR(100) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  category VARCHAR(50) DEFAULT 'general',
+  priority VARCHAR(20) DEFAULT 'medium',
+  author VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-\`\`\`
 
-### Staff Table (for authentication)
-\`\`\`sql
-CREATE TABLE staff (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(100) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
+CREATE INDEX idx_notes_student ON notes(student_id);
+CREATE INDEX idx_notes_category ON notes(category);
+CREATE INDEX idx_notes_priority ON notes(priority);
+CREATE INDEX idx_notes_author ON notes(author);
+
+-- Rush teams table
+CREATE TABLE rush_teams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_name VARCHAR(100) NOT NULL,
+  team_name VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE INDEX idx_rush_teams_project ON rush_teams(project_name);
+
+-- Rush team members table
+CREATE TABLE rush_team_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID REFERENCES rush_teams(id) ON DELETE CASCADE,
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 4),
+  feedback TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(team_id, student_id)
+);
+
+CREATE INDEX idx_rush_members_team ON rush_team_members(team_id);
+CREATE INDEX idx_rush_members_student ON rush_team_members(student_id);
+CREATE INDEX idx_rush_members_rating ON rush_team_members(rating);
 \`\`\`
 
-## API Endpoints
+## 🔌 API Endpoints
 
-### 1. Authentication
-
-#### POST /api/auth/login
-Staff login with email and password.
-
-**Request:**
-\`\`\`json
-{
-  "email": "staff@example.com",
-  "password": "password123"
-}
-\`\`\`
-
-**Response:**
-\`\`\`json
-{
-  "success": true,
-  "token": "jwt_token_here",
-  "user": {
-    "id": 1,
-    "email": "staff@example.com",
-    "name": "Staff Member"
-  }
-}
-\`\`\`
-
-#### POST /api/auth/logout
-Logout current user.
-
-#### GET /api/auth/me
-Get current authenticated user info.
-
-### 2. Students Management
+### Students API
 
 #### GET /api/students
-Get all students with search and filtering.
+Get all students with optional filtering and pagination.
 
 **Query Parameters:**
-- `search` (string): Search by name or username
-- `exam_filter` (string): 'validated', 'not_validated', 'all'
-- `rush_filter` (string): 'participated', 'not_participated', 'all'
 - `page` (number): Page number (default: 1)
 - `limit` (number): Items per page (default: 50)
+- `search` (string): Search by name, login, or email
+- `status` (string): Filter by status
+- `pool_month` (string): Filter by pool month
+- `pool_year` (number): Filter by pool year
+- `rush_rating` (number): Filter by rush rating (1-4)
 
 **Response:**
 \`\`\`json
 {
   "students": [
     {
-      "uuid": "f11517a7-50a0-410e-bdb4-5910269ebbda",
-      "username": "yasser.al-agoul",
-      "name": "Yasser AL-AGOUL",
-      "email": "yk198620@gmail.com",
-      "profile_image_url": "https://example.com/image.jpg",
-      "level": 4.3,
-      "exam_grades": {
-        "exam00": { "grade": 0, "validated": false },
-        "exam01": { "grade": 30, "validated": false },
-        "exam02": { "grade": 60, "validated": false },
-        "final_exam": { "grade": 31, "validated": false }
-      },
-      "rush_participation": [
-        {
-          "project_name": "square",
-          "team_name": "Team Alpha",
-          "grade": 85,
-          "team_members": ["john.doe", "jane.smith"]
-        }
-      ],
-      "created_at": "2024-01-01T00:00:00Z"
+      "id": "uuid",
+      "uuid": "student-uuid",
+      "login": "jdoe",
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john.doe@student.42.fr",
+      "phone": "+1234567890",
+      "campus": "Paris",
+      "level": 5.42,
+      "wallet": 150,
+      "correction_points": 8,
+      "location": "e1r3p4",
+      "status": "active",
+      "pool_month": "September",
+      "pool_year": 2024,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 50,
-    "total": 150,
-    "pages": 3
-  }
+  "total": 150,
+  "page": 1,
+  "totalPages": 3
 }
 \`\`\`
 
-#### GET /api/students/\[uuid\]
-Get detailed student profile.
+#### GET /api/students/[id]
+Get a specific student by ID with related data.
 
 **Response:**
 \`\`\`json
 {
   "student": {
-    "uuid": "f11517a7-50a0-410e-bdb4-5910269ebbda",
-    "username": "yasser.al-agoul",
-    "name": "Yasser AL-AGOUL",
-    "email": "yk198620@gmail.com",
-    "profile_image_url": "https://example.com/image.jpg",
-    "level": 4.3,
+    "id": "uuid",
+    "uuid": "student-uuid",
+    "login": "jdoe",
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john.doe@student.42.fr",
     "exam_grades": [
       {
-        "exam_name": "exam00",
-        "grade": 0,
-        "validated": false,
-        "created_at": "2024-01-01T00:00:00Z"
-      }
-    ],
-    "rush_teams": [
-      {
-        "id": 1,
-        "team_name": "Team Alpha",
-        "project_name": "square",
+        "id": "uuid",
+        "exam_name": "C Exam 01",
         "grade": 85,
-        "team_members": [
-          {
-            "uuid": "other-uuid",
-            "username": "john.doe",
-            "name": "John DOE"
-          }
-        ],
-        "created_at": "2024-01-05T00:00:00Z"
+        "max_grade": 100,
+        "exam_date": "2024-01-15"
       }
     ],
     "notes": [
       {
-        "id": 1,
-        "title": "Strong problem-solving skills",
-        "content": "Demonstrated excellent abilities...",
-        "note_type": "general",
-        "author_name": "John Doe",
-        "created_at": "2024-01-15T10:30:00Z"
+        "id": "uuid",
+        "title": "Great progress",
+        "content": "Student shows excellent understanding",
+        "category": "academic",
+        "priority": "high",
+        "author": "Staff Member",
+        "created_at": "2024-01-01T00:00:00Z"
+      }
+    ],
+    "rush_evaluations": [
+      {
+        "team_name": "Team Alpha",
+        "project_name": "Rush 00",
+        "rating": 4,
+        "feedback": "Excellent teamwork"
       }
     ]
   }
 }
 \`\`\`
 
-### 3. CSV Import
+#### POST /api/students
+Create a new student.
 
-#### POST /api/import/students
-Import initial student data from CSV.
-
-**Request:** Multipart form data
-- `file`: CSV file
-- `type`: "initial" or "update"
-
-**CSV Format:**
-\`\`\`csv
-uuid,username,name,email,profile_image_url
-f11517a7-50a0-410e-bdb4-5910269ebbda,yasser.al-agoul,Yasser AL-AGOUL,yk198620@gmail.com,https://example.com/image.jpg
-\`\`\`
-
-**Response:**
+**Request Body:**
 \`\`\`json
 {
-  "success": true,
-  "message": "Successfully imported 45 students",
-  "stats": {
-    "total_rows": 45,
-    "created": 40,
-    "updated": 5,
-    "errors": 0
-  },
-  "errors": []
+  "uuid": "student-uuid",
+  "login": "jdoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "john.doe@student.42.fr",
+  "phone": "+1234567890",
+  "campus": "Paris",
+  "pool_month": "September",
+  "pool_year": 2024
 }
 \`\`\`
 
-#### POST /api/import/grades
-Import exam grades from CSV.
+#### PUT /api/students/[id]
+Update a student.
 
-**CSV Format:**
-\`\`\`csv
-uuid,exam_name,grade,validated
-f11517a7-50a0-410e-bdb4-5910269ebbda,exam00,45,false
-f11517a7-50a0-410e-bdb4-5910269ebbda,exam01,78,true
-\`\`\`
+#### DELETE /api/students/[id]
+Delete a student and all related data.
 
-#### POST /api/import/rush-teams
-Import rush team assignments from CSV.
-
-**CSV Format:**
-\`\`\`csv
-team_name,project_name,member1_uuid,member2_uuid,member3_uuid,member4_uuid,grade
-Team Alpha,square,uuid1,uuid2,uuid3,uuid4,85
-\`\`\`
-
-### 4. Notes Management
+### Notes API
 
 #### GET /api/notes
-Get notes with filtering.
+Get all notes with filtering.
 
 **Query Parameters:**
-- `target_id` (string): Filter by student UUID or team ID
-- `type` (string): 'student' or 'rush_team'
-- `note_type` (string): 'general' or 'rush_specific'
+- `student_id` (uuid): Filter by student
+- `category` (string): Filter by category
+- `priority` (string): Filter by priority
+- `author` (string): Filter by author
+- `page` (number): Page number
+- `limit` (number): Items per page
 
 #### POST /api/notes
 Create a new note.
 
-**Request:**
+**Request Body:**
 \`\`\`json
 {
-  "type": "student",
-  "target_id": "f11517a7-50a0-410e-bdb4-5910269ebbda",
-  "target_name": "Yasser AL-AGOUL",
-  "title": "Performance Review",
-  "content": "Student shows excellent progress...",
-  "note_type": "general"
+  "student_id": "uuid",
+  "title": "Note title",
+  "content": "Note content",
+  "category": "academic",
+  "priority": "high",
+  "author": "Staff Member"
 }
 \`\`\`
 
-#### PUT /api/notes/\[id\]
+#### PUT /api/notes/[id]
 Update a note.
 
-#### DELETE /api/notes/\[id\]
+#### DELETE /api/notes/[id]
 Delete a note.
 
-### 5. Dashboard Analytics
+### Rush Evaluation API
+
+#### GET /api/rush/teams
+Get all rush teams with members.
+
+#### POST /api/rush/teams
+Create a new rush team.
+
+**Request Body:**
+\`\`\`json
+{
+  "project_name": "Rush 00",
+  "team_name": "Team Alpha",
+  "members": [
+    {
+      "student_id": "uuid",
+      "rating": 4,
+      "feedback": "Excellent work"
+    }
+  ]
+}
+\`\`\`
+
+#### PUT /api/rush/teams/[id]/members/[memberId]
+Update a team member's rating and feedback.
+
+#### DELETE /api/rush/teams/[id]
+Delete a rush team.
+
+### Dashboard API
 
 #### GET /api/dashboard/stats
 Get dashboard statistics.
@@ -323,149 +311,237 @@ Get dashboard statistics.
 **Response:**
 \`\`\`json
 {
-  "total_students": 150,
-  "final_exam_validated": 45,
-  "average_exam_grade": 72.3,
-  "rush_participation_rate": 85.2,
-  "grade_distribution": {
-    "0-20": 5,
-    "21-40": 15,
-    "41-60": 35,
-    "61-80": 60,
-    "81-100": 35
-  }
+  "totalStudents": 150,
+  "activeStudents": 142,
+  "averageLevel": 5.42,
+  "totalNotes": 89,
+  "recentActivity": [
+    {
+      "type": "note_added",
+      "student_name": "John Doe",
+      "timestamp": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "gradeDistribution": [
+    { "range": "0-20", "count": 5 },
+    { "range": "21-40", "count": 12 },
+    { "range": "41-60", "count": 25 },
+    { "range": "61-80", "count": 45 },
+    { "range": "81-100", "count": 63 }
+  ]
 }
 \`\`\`
 
-### 6. Data Export
+### Import API
 
-#### GET /api/export/students
-Export student data as CSV.
+#### POST /api/import/csv
+Import student data from CSV file.
 
-**Query Parameters:**
-- `filter`: 'all', 'validated', 'recommended'
-- `include_grades`: boolean
-- `include_rush`: boolean
+**Request:** Multipart form data with CSV file
 
-**Response:** CSV file download
+**Response:**
+\`\`\`json
+{
+  "success": true,
+  "imported": 150,
+  "errors": [],
+  "message": "Successfully imported 150 students"
+}
+\`\`\`
 
-### 7. Rush Management
+## 🛠️ Server Actions
 
-#### GET /api/rush/teams/\[teamId\]/notes
-Get all notes for a rush team (accessible from any team member's profile).
+### Student Actions
+\`\`\`typescript
+// app/actions/students.ts
+export async function createStudent(formData: FormData)
+export async function updateStudent(id: string, formData: FormData)
+export async function deleteStudent(id: string)
+\`\`\`
 
-#### POST /api/rush/teams/\[teamId\]/notes
-Add a note to a rush team.
+### Note Actions
+\`\`\`typescript
+// app/actions/notes.ts
+export async function createNote(formData: FormData)
+export async function updateNote(id: string, formData: FormData)
+export async function deleteNote(id: string)
+\`\`\`
 
-## Next.js Project Structure
+### Rush Actions
+\`\`\`typescript
+// app/actions/rush.ts
+export async function createRushTeam(formData: FormData)
+export async function updateRushRating(memberId: string, rating: number, feedback: string)
+export async function deleteRushTeam(id: string)
+\`\`\`
+
+## 🌍 Environment Variables
+
+\`\`\`env
+# Database
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Authentication
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_nextauth_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# File Storage
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+\`\`\`
+
+## 📁 Project Structure
 
 \`\`\`
 app/
 ├── api/
-│   ├── auth/
-│   │   ├── login/route.ts
-│   │   ├── logout/route.ts
-│   │   └── me/route.ts
 │   ├── students/
-│   │   ├── route.ts                 # GET, POST /api/students
-│   │   └── [uuid]/
-│   │       └── route.ts             # GET /api/students/[uuid]
+│   │   ├── route.ts
+│   │   └── [id]/route.ts
 │   ├── notes/
-│   │   ├── route.ts                 # GET, POST /api/notes
-│   │   └── [id]/
-│   │       └── route.ts             # PUT, DELETE /api/notes/[id]
-│   ├── import/
-│   │   ├── students/route.ts        # POST /api/import/students
-│   │   ├── grades/route.ts          # POST /api/import/grades
-│   │   └── rush-teams/route.ts      # POST /api/import/rush-teams
-│   ├── export/
-│   │   └── students/route.ts        # GET /api/export/students
+│   │   ├── route.ts
+│   │   └── [id]/route.ts
+│   ├── rush/
+│   │   └── teams/route.ts
 │   ├── dashboard/
-│   │   └── stats/route.ts           # GET /api/dashboard/stats
-│   └── rush/
-│       └── teams/
-│           └── [teamId]/
-│               └── notes/route.ts   # GET, POST /api/rush/teams/[teamId]/notes
+│   │   └── stats/route.ts
+│   └── import/
+│       └── csv/route.ts
 ├── actions/
-│   ├── auth.ts                      # Server Actions for authentication
-│   ├── students.ts                  # Server Actions for student management
-│   ├── notes.ts                     # Server Actions for notes
-│   └── import.ts                    # Server Actions for CSV imports
+│   ├── students.ts
+│   ├── notes.ts
+│   └── rush.ts
 ├── dashboard/
-│   └── page.tsx                     # Main dashboard
+│   └── page.tsx
 ├── students/
-│   ├── page.tsx                     # Students list
-│   └── [uuid]/
-│       └── page.tsx                 # Student profile
+│   ├── page.tsx
+│   └── [uuid]/page.tsx
 ├── notes/
-│   └── page.tsx                     # Notes management
-├── import/
-│   └── page.tsx                     # CSV import interface
-└── lib/
-    ├── db.ts                        # Database connection
-    ├── auth.ts                      # Authentication utilities
-    ├── csv-parser.ts                # CSV processing
-    └── utils.ts                     # Utility functions
+│   └── page.tsx
+├── rush-evaluation/
+│   └── page.tsx
+├── settings/
+│   └── page.tsx
+└── import/
+    └── page.tsx
+
+components/
+├── ui/
+├── app-sidebar.tsx
+├── student-table.tsx
+├── stats-cards.tsx
+└── grade-distribution.tsx
+
+lib/
+├── supabase.ts
+├── utils.ts
+└── types.ts
 \`\`\`
 
-## Server Actions (for better UX)
+## 🔐 Authentication System
+
+### NextAuth.js Configuration
 
 \`\`\`typescript
-// app/actions/students.ts
-export async function searchStudents(formData: FormData)
-export async function exportStudents(filters: any)
+// app/api/auth/[...nextauth]/route.ts
+import NextAuth from "next-auth"
+import GoogleProvider from "next-auth/providers/google"
 
-// app/actions/notes.ts
-export async function createNote(formData: FormData)
-export async function updateNote(id: number, formData: FormData)
-
-// app/actions/import.ts
-export async function importStudentCSV(formData: FormData)
-export async function importGradesCSV(formData: FormData)
-export async function importRushTeamsCSV(formData: FormData)
-
-// app/actions/auth.ts
-export async function login(formData: FormData)
-export async function logout()
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+  pages: {
+    signIn: "/auth/signin",
+  },
+  callbacks: {
+    async signIn({ user, account }) {
+      // Verify user is authorized staff member
+      // Create staff record if doesn't exist
+    },
+    async session({ session, token }) {
+      // Add user role and ID to session
+    },
+  },
+})
 \`\`\`
 
-## Environment Variables
+### Session Management
 
-\`\`\`env
-# Database
-DATABASE_URL="postgresql://..."
+\`\`\`typescript
+// lib/auth.ts
+export async function getSession() {
+  return await auth()
+}
 
-# Authentication
-NEXTAUTH_SECRET="your-secret"
-NEXTAUTH_URL="http://localhost:3000"
+export async function requireAuth() {
+  const session = await getSession()
+  if (!session) redirect("/auth/signin")
+  return session
+}
 
-# File Storage (for CSV uploads)
-BLOB_READ_WRITE_TOKEN="your-blob-token"
+export async function requireRole(role: string) {
+  const session = await requireAuth()
+  if (session.user?.role !== role && session.user?.role !== "admin") {
+    redirect("/dashboard")
+  }
+  return session
+}
 \`\`\`
 
-## CSV Templates
+## 🚀 Deployment Steps
 
-### Student Data Template
-\`\`\`csv
-uuid,username,name,email,profile_image_url
-f11517a7-50a0-410e-bdb4-5910269ebbda,yasser.al-agoul,Yasser AL-AGOUL,yk198620@gmail.com,https://example.com/image.jpg
-\`\`\`
+1. **Create Supabase Project**
+   \`\`\`bash
+   # Run the SQL schema in Supabase SQL Editor
+   \`\`\`
 
-### Exam Grades Template
-\`\`\`csv
-uuid,exam_name,grade,validated
-f11517a7-50a0-410e-bdb4-5910269ebbda,exam00,45,false
-f11517a7-50a0-410e-bdb4-5910269ebbda,exam01,78,true
-f11517a7-50a0-410e-bdb4-5910269ebbda,exam02,82,true
-f11517a7-50a0-410e-bdb4-5910269ebbda,final_exam,89,true
-\`\`\`
+2. **Configure Google OAuth**
+   \`\`\`bash
+   # Google Cloud Console -> APIs & Services -> Credentials
+   # Create OAuth 2.0 Client ID
+   # Add authorized redirect URIs
+   \`\`\`
 
-### Rush Teams Template
-\`\`\`csv
-team_name,project_name,member1_uuid,member2_uuid,member3_uuid,member4_uuid,grade
-Team Alpha,square,uuid1,uuid2,uuid3,uuid4,85
-Team Beta,skyscraper,uuid5,uuid6,uuid7,uuid8,92
-Team Gamma,rosetta_stone,uuid9,uuid10,uuid11,uuid12,78
-\`\`\`
+3. **Set Environment Variables**
+   \`\`\`bash
+   # In Vercel dashboard or .env.local
+   \`\`\`
 
-This streamlined API documentation focuses on the 8 core features you specified, with a clean Next.js full-stack implementation structure.
+4. **Deploy to Vercel**
+   \`\`\`bash
+   npm run build
+   vercel deploy
+   \`\`\`
+
+## 📊 Data Flow
+
+1. **Authentication**: Google OAuth → NextAuth.js → Supabase staff table
+2. **Student Data**: CSV Import → Validation → Supabase students table
+3. **Notes**: Form submission → Server Action → Supabase notes table
+4. **Rush Evaluation**: Team creation → Member assignment → Rating submission
+5. **Dashboard**: Real-time queries → Statistics calculation → Chart rendering
+
+## 🔒 Security Features
+
+- **Route Protection**: Middleware checks authentication
+- **Role-based Access**: Staff and admin roles
+- **CSRF Protection**: NextAuth.js built-in protection
+- **SQL Injection Prevention**: Supabase parameterized queries
+- **XSS Protection**: React built-in sanitization
+
+## 📈 Performance Optimizations
+
+- **Database Indexes**: Optimized queries for large datasets
+- **Server Components**: Reduced client-side JavaScript
+- **Caching**: Next.js automatic caching for static data
+- **Pagination**: Efficient data loading for large tables
+- **Lazy Loading**: Components loaded on demand
+
+This documentation provides everything needed to build and deploy a production-ready piscine management system!

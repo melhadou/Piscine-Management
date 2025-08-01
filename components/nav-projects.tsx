@@ -16,28 +16,27 @@ import {
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function NavProjects({
   projects,
+  onLinkClick,
 }: {
   projects: {
     name: string
     url: string
     icon: LucideIcon
   }[]
+  onLinkClick?: () => void
 }) {
-  const { isMobile } = useSidebar()
-
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Quick Access</SidebarGroupLabel>
+      <SidebarGroupLabel>Projects</SidebarGroupLabel>
       <SidebarMenu>
         {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
             <SidebarMenuButton asChild>
-              <a href={item.url}>
+              <a href={item.url} onClick={onLinkClick}>
                 <item.icon />
                 <span>{item.name}</span>
               </a>
@@ -49,23 +48,19 @@ export function NavProjects({
                   <span className="sr-only">More</span>
                 </SidebarMenuAction>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-48 rounded-lg"
-                side={isMobile ? "bottom" : "right"}
-                align={isMobile ? "end" : "start"}
-              >
+              <DropdownMenuContent className="w-48 rounded-lg" side="bottom" align="end">
                 <DropdownMenuItem>
                   <Folder className="text-muted-foreground" />
-                  <span>View Details</span>
+                  <span>View Project</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Forward className="text-muted-foreground" />
-                  <span>Share</span>
+                  <span>Share Project</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Trash2 className="text-muted-foreground" />
-                  <span>Delete</span>
+                  <span>Delete Project</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
