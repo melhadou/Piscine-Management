@@ -52,7 +52,32 @@ export default function DashboardPage() {
   const [dashboardStats, setDashboardStats] = useState<any>(null)
   
   // Use cached student data
-  const { students, loading, error } = useStudentCache()
+  const { students, loading, error, fetchStudents: refetchStudents } = useStudentCache()
+
+  // Fallback: if cache fails, try direct API call
+  useEffect(() => {
+    if (error && !loading && students.length === 0) {
+      console.log('Dashboard: Cache failed, attempting direct API call...')
+      // Try to fetch directly as fallback
+      const fetchDirect = async () => {
+        try {
+          const response = await fetch('/api/students')
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success && data.students) {
+              console.log('Dashboard: Direct API call successful')
+              // Force refresh the cache with new data
+              await refetchStudents(true)
+            }
+          }
+        } catch (err) {
+          console.error('Dashboard: Direct API call also failed:', err)
+        }
+      }
+      
+      setTimeout(fetchDirect, 1000) // Small delay to avoid rapid retries
+    }
+  }, [error, loading, students.length, refetchStudents])
 
   // Fetch other dashboard data (not students, those come from cache)
   useEffect(() => {

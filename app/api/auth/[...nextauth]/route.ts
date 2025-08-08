@@ -20,6 +20,21 @@ const authOptions = {
 		signIn: "/auth/signin",
 		error: "/api/auth/error",
 	},
+	session: {
+		strategy: "jwt",
+		maxAge: 30 * 24 * 60 * 60, // 30 days
+	},
+	cookies: {
+		sessionToken: {
+			name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+			options: {
+				httpOnly: true,
+				sameSite: "lax",
+				path: "/",
+				secure: process.env.NODE_ENV === "production",
+			},
+		},
+	},
 	debug: process.env.NODE_ENV === "development",
 	secret: process.env.NEXTAUTH_SECRET,
 	callbacks: {
@@ -80,28 +95,34 @@ const authOptions = {
 			console.log("Invalid provider:", account?.provider)
 			return false
 		},
-		async session({ session, token }: any) {
-			console.log("Session callback triggered:", session.user?.email)
-
-			if (session.user?.email) {
+		async jwt({ token, user, account }: any) {
+			// Persist the OAuth access_token to the token right after signin
+			if (account && user) {
+				token.user = user
+				
+				// Get user role from database
 				try {
-					// Add user role to session
 					const { data: staff } = await supabase
 						.from("staff")
 						.select("role, id")
-						.eq("email", session.user.email)
+						.eq("email", user.email)
 						.single()
 
 					if (staff) {
-						session.user.role = staff.role
-						session.user.id = staff.id
-						console.log("Session updated with role:", staff.role)
+						token.user.role = staff.role
+						token.user.id = staff.id
 					}
 				} catch (error) {
-					console.error("Session error:", error)
+					console.error("JWT callback error:", error)
 				}
 			}
-
+			return token
+		},
+		async session({ session, token }: any) {
+			// Send properties to the client
+			if (token?.user) {
+				session.user = token.user
+			}
 			return session
 		},
 	},

@@ -13,6 +13,15 @@ export default function SignInPage() {
 
 	useEffect(() => {
 		const checkSession = async () => {
+			// Only redirect if we're not in the middle of a callback
+			const urlParams = new URLSearchParams(window.location.search)
+			const hasCallbackUrl = urlParams.has('callbackUrl')
+			
+			if (hasCallbackUrl) {
+				// We're in a callback flow, don't interfere
+				return
+			}
+
 			const session = await getSession()
 			if (session) {
 				router.push('/dashboard')

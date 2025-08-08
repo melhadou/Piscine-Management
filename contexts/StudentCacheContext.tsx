@@ -64,6 +64,9 @@ export function StudentCacheProvider({ children }: StudentCacheProviderProps) {
 
   // Check if cached data exists and is valid
   const getCachedData = (): Student[] | null => {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') return null
+    
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (!cached) return null
@@ -79,13 +82,18 @@ export function StudentCacheProvider({ children }: StudentCacheProviderProps) {
       return cacheEntry.data
     } catch (error) {
       console.error('Error reading cached data:', error)
-      localStorage.removeItem(CACHE_KEY)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(CACHE_KEY)
+      }
       return null
     }
   }
 
   // Save data to cache
   const setCachedData = (data: Student[]) => {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') return
+    
     try {
       const cacheEntry: CacheEntry<Student[]> = {
         data,
@@ -100,6 +108,9 @@ export function StudentCacheProvider({ children }: StudentCacheProviderProps) {
 
   // Check if data is stale (older than 15 minutes)
   const isDataStale = (): boolean => {
+    // Check if we're in the browser (not SSR)
+    if (typeof window === 'undefined') return true
+    
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (!cached) return true
@@ -116,38 +127,47 @@ export function StudentCacheProvider({ children }: StudentCacheProviderProps) {
 
   // Fetch students data
   const fetchStudents = async (force: boolean = false) => {
+    console.log('StudentCache: fetchStudents called, force:', force)
+    
     // If not forced, check cache first
     if (!force) {
       const cachedData = getCachedData()
       if (cachedData && cachedData.length > 0) {
+        console.log('StudentCache: Using existing cached data')
         setStudents(cachedData)
         setError(null)
         return
       }
     }
 
+    console.log('StudentCache: Fetching from API...')
     setLoading(true)
     setError(null)
 
     try {
       const response = await fetch('/api/students')
+      console.log('StudentCache: API response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch students')
+        throw new Error(`API request failed with status ${response.status}: ${response.statusText}`)
       }
 
       const data = await response.json()
+      console.log('StudentCache: API response data success:', data.success, 'students count:', data.students?.length || 0)
+      
       if (data.success) {
         const studentsData = data.students || []
+        console.log('StudentCache: Setting students data:', studentsData.length, 'students')
         setStudents(studentsData)
         setCachedData(studentsData)
         setError(null)
       } else {
-        throw new Error(data.error || 'Failed to fetch students')
+        throw new Error(data.error || 'API returned success: false')
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load data'
+      console.error('StudentCache: Fetch error:', err)
       setError(errorMessage)
-      console.error('Error fetching students:', err)
     } finally {
       setLoading(false)
     }
@@ -155,7 +175,9 @@ export function StudentCacheProvider({ children }: StudentCacheProviderProps) {
 
   // Clear cache
   const clearCache = () => {
-    localStorage.removeItem(CACHE_KEY)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CACHE_KEY)
+    }
     setStudents([])
     setError(null)
   }
@@ -168,16 +190,26 @@ export function StudentCacheProvider({ children }: StudentCacheProviderProps) {
 
   // Load cached data on mount
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
+    console.log('StudentCache: Initializing...')
+    
     const cachedData = getCachedData()
+    console.log('StudentCache: Cached data found:', !!cachedData, 'length:', cachedData?.length || 0)
+    
     if (cachedData && cachedData.length > 0) {
+      console.log('StudentCache: Using cached data')
       setStudents(cachedData)
       
       // If data is stale, fetch in background
       if (isDataStale()) {
+        console.log('StudentCache: Data is stale, fetching fresh data in background')
         fetchStudents(true)
       }
     } else {
       // No valid cache, fetch immediately
+      console.log('StudentCache: No cached data, fetching immediately')
       fetchStudents(true)
     }
   }, [])
