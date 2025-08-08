@@ -242,13 +242,30 @@ function generateUUIDFromString(str: string): string {
 	return `${positiveHash.substring(0, 8)}-${positiveHash.substring(0, 4)}-4${positiveHash.substring(1, 4)}-8${positiveHash.substring(2, 5)}-${positiveHash.padEnd(12, '0').substring(0, 12)}`
 }
 
-// Enhanced student import with HTML name parsing and email generation
+// Optimized batch student import with HTML name parsing and email generation
 async function importToStudents(data: string[][], columnIndices: Record<string, number>): Promise<ImportStats> {
 	const [, ...rows] = data
 	const stats: ImportStats = { total_rows: rows.length, created: 0, updated: 0, errors: 0 }
 	const errors: string[] = []
 
 	console.log('🏫 Importing students with enhanced data, found columns:', Object.keys(columnIndices))
+	
+	// Batch processing: prepare all students data first, then bulk insert/update
+	const studentsToInsert: any[] = []
+	const studentsToUpdate: any[] = []
+	
+	// Get all existing students in one query
+	const existingUsernames = new Set<string>()
+	try {
+		const { data: existingStudents } = await supabase
+			.from('students')
+			.select('username')
+		
+		existingStudents?.forEach(s => existingUsernames.add(s.username.toLowerCase()))
+		console.log(`📊 Found ${existingUsernames.size} existing students`)
+	} catch (error) {
+		console.error('Error fetching existing students:', error)
+	}
 
 	// Enhanced HTML parsing function
 	function extractNameAndImage(nameField: string): { name: string, imageUrl: string | null } {
@@ -338,6 +355,7 @@ async function importToStudents(data: string[][], columnIndices: Record<string, 
 		return `${cleanUsername}@learner.42.tech`
 	}
 
+	// Process all rows and prepare batch data
 	for (let i = 0; i < rows.length; i++) {
 		const row = rows[i]
 
@@ -351,8 +369,6 @@ async function importToStudents(data: string[][], columnIndices: Record<string, 
 			const providedEmail = row[columnIndices.email]?.trim()
 			const uuid = row[columnIndices.uuid]?.trim() || generateUUIDFromString(username || `student_${i}`)
 
-			console.log(`👤 Processing student ${i + 2}: ${username} -> Raw name: "${rawName}"`)
-
 			if (!username || !rawName) {
 				const missing = []
 				if (!username) missing.push('username')
@@ -360,7 +376,6 @@ async function importToStudents(data: string[][], columnIndices: Record<string, 
 
 				const errorMsg = `Row ${i + 2}: Missing required fields: ${missing.join(', ')}`
 				errors.push(errorMsg)
-				console.log('❌', errorMsg)
 				stats.errors++
 				continue
 			}
@@ -373,18 +388,13 @@ async function importToStudents(data: string[][], columnIndices: Record<string, 
 			// Generate email
 			const email = generateEmail(username, providedEmail)
 
-			console.log(`📧 Generated email for ${username}: ${email}`)
-			console.log(`🖼️ Extracted image for ${username}: ${profileImageUrl || 'none'}`)
-			console.log(`📛 Clean name for ${username}: ${cleanName}`)
-
 			// Build comprehensive student data object
 			const studentData: any = {
 				uuid,
 				username,
 				name: cleanName,
 				email: email,
-				profile_image_url: profileImageUrl, // Store the extracted image URL
-				// Performance metrics
+				profile_image_url: profileImageUrl,
 				blocks: parseNumericValue(row[columnIndices.blocks]) || 0,
 				level: parseNumericValue(row[columnIndices.level]) || 0.00,
 				votes_given: parseNumericValue(row[columnIndices.votes_given]) || 0,
@@ -396,86 +406,74 @@ async function importToStudents(data: string[][], columnIndices: Record<string, 
 				performance: parseNumericValue(row[columnIndices.performance]) || 0.00,
 				communication: parseNumericValue(row[columnIndices.communication]) || 0.00,
 				professionalism: parseNumericValue(row[columnIndices.professionalism]) || 0.00,
-				// Project tracking
 				validated_rushes_participated: row[columnIndices.validated_rushes_participated]?.trim() || null,
 				passed_exams_registered: row[columnIndices.passed_exams_registered]?.trim() || null,
 				final_exam_validated: parseBooleanValue(row[columnIndices.final_exam_validated]),
 				last_validated_project: row[columnIndices.last_validated_project]?.trim() || null,
 				validated_projects: parseNumericValue(row[columnIndices.validated_projects]) || 0,
-				// Personal info
 				age: parseNumericValue(row[columnIndices.age]) || null,
 				gender: row[columnIndices.gender]?.trim() || null,
 				coding_level: row[columnIndices.coding_level]?.trim() || null,
 				context: row[columnIndices.context]?.trim() || null
 			}
 
-			// Remove null/undefined values to avoid database issues
+			// Remove null/undefined values
 			Object.keys(studentData).forEach(key => {
 				if (studentData[key] === null || studentData[key] === undefined) {
 					delete studentData[key]
 				}
 			})
 
-			console.log('💾 Student data to save:', {
-				username: studentData.username,
-				name: studentData.name,
-				email: studentData.email,
-				profile_image_url: studentData.profile_image_url,
-				level: studentData.level,
-				performance: studentData.performance
-			})
-
-			// Check if student exists
-			const { data: existingStudent, error: selectError } = await supabase
-				.from('students')
-				.select('id')
-				.eq('username', username)
-				.maybeSingle()
-
-			if (selectError) {
-				const errorMsg = `Row ${i + 2}: Database error: ${selectError.message}`
-				errors.push(errorMsg)
-				console.log('❌', errorMsg)
-				stats.errors++
-				continue
-			}
-
-			if (existingStudent) {
-				const { error: updateError } = await supabase
-					.from('students')
-					.update(studentData)
-					.eq('username', username)
-
-				if (updateError) {
-					const errorMsg = `Row ${i + 2}: Update failed: ${updateError.message}`
-					errors.push(errorMsg)
-					console.log('❌', errorMsg)
-					stats.errors++
-				} else {
-					stats.updated++
-					console.log('✅ Updated student:', username, 'with image:', profileImageUrl ? 'YES' : 'NO')
-				}
+			// Determine if this is an insert or update
+			if (existingUsernames.has(username)) {
+				studentsToUpdate.push(studentData)
 			} else {
-				const { error: insertError } = await supabase
-					.from('students')
-					.insert([studentData])
-
-				if (insertError) {
-					const errorMsg = `Row ${i + 2}: Insert failed: ${insertError.message}`
-					errors.push(errorMsg)
-					console.log('❌', errorMsg)
-					stats.errors++
-				} else {
-					stats.created++
-					console.log('✅ Created student:', username, 'with image:', profileImageUrl ? 'YES' : 'NO')
-				}
+				studentsToInsert.push(studentData)
 			}
 
 		} catch (error) {
 			const errorMsg = `Row ${i + 2}: ${error instanceof Error ? error.message : 'Unknown error'}`
 			errors.push(errorMsg)
-			console.log('❌', errorMsg)
 			stats.errors++
+		}
+	}
+
+	// Perform batch operations
+	console.log(`📊 Prepared ${studentsToInsert.length} inserts and ${studentsToUpdate.length} updates`)
+
+	// Batch insert new students
+	if (studentsToInsert.length > 0) {
+		const { error: insertError } = await supabase
+			.from('students')
+			.insert(studentsToInsert)
+
+		if (insertError) {
+			console.error('Batch insert error:', insertError)
+			stats.errors += studentsToInsert.length
+		} else {
+			stats.created += studentsToInsert.length
+			console.log(`✅ Batch created ${studentsToInsert.length} students`)
+		}
+	}
+
+	// Batch update existing students (unfortunately Supabase doesn't support batch updates easily)
+	// We'll do this in smaller chunks to avoid timeouts
+	const chunkSize = 10
+	for (let i = 0; i < studentsToUpdate.length; i += chunkSize) {
+		const chunk = studentsToUpdate.slice(i, i + chunkSize)
+		
+		for (const studentData of chunk) {
+			const { error: updateError } = await supabase
+				.from('students')
+				.update(studentData)
+				.eq('username', studentData.username)
+
+			if (updateError) {
+				console.error(`Update error for ${studentData.username}:`, updateError)
+				stats.errors++
+			} else {
+				stats.updated++
+			}
 		}
 	}
 
@@ -803,6 +801,8 @@ async function smartImport(data: string[][]): Promise<ImportResult> {
 }
 
 export async function POST(request: NextRequest) {
+	const startTime = Date.now()
+	
 	try {
 		console.log('Enhanced Smart Import API called')
 
@@ -823,25 +823,61 @@ export async function POST(request: NextRequest) {
 		}
 
 		const csvText = await file.text()
+		console.log(`📄 CSV file size: ${csvText.length} characters`)
+		
 		const data = parseCSV(csvText)
+		console.log(`📊 Parsed ${data.length} rows (including header)`)
 
 		if (data.length < 2) {
 			return NextResponse.json({ error: 'CSV file must contain headers and at least one data row' }, { status: 400 })
 		}
 
-		// Use smart import
-		const result = await smartImport(data)
-		return NextResponse.json(result)
+		// Check if we have too many rows for safe processing
+		const maxRows = 1000 // Limit to prevent timeouts
+		if (data.length > maxRows) {
+			return NextResponse.json({ 
+				success: false,
+				error: `File too large. Maximum ${maxRows} rows allowed, but got ${data.length} rows. Please split your file into smaller chunks.` 
+			}, { status: 400 })
+		}
+
+		// Set a timeout to prevent 504 errors
+		const maxProcessingTime = 25000 // 25 seconds, under Vercel's 30s limit
+		const timeoutPromise = new Promise((_, reject) => {
+			setTimeout(() => reject(new Error('Processing timeout - file too large')), maxProcessingTime)
+		})
+
+		// Race between import and timeout
+		const result = await Promise.race([
+			smartImport(data),
+			timeoutPromise
+		]) as ImportResult
+
+		const processingTime = Date.now() - startTime
+		console.log(`⏱️ Total processing time: ${processingTime}ms`)
+
+		return NextResponse.json({
+			...result,
+			processingTimeMs: processingTime
+		})
 
 	} catch (error) {
+		const processingTime = Date.now() - startTime
 		console.error('Enhanced smart import error:', error)
+		
+		// Check if it's a timeout error
+		const isTimeout = error instanceof Error && error.message.includes('timeout')
+		
 		return NextResponse.json(
 			{
 				success: false,
-				message: 'Internal server error',
-				error: error instanceof Error ? error.message : 'Unknown error'
+				message: isTimeout 
+					? 'Import timed out. Please try with a smaller file (max 1000 rows)' 
+					: 'Internal server error',
+				error: error instanceof Error ? error.message : 'Unknown error',
+				processingTimeMs: processingTime
 			},
-			{ status: 500 }
+			{ status: isTimeout ? 408 : 500 }
 		)
 	}
 }
