@@ -1,29 +1,17 @@
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
-import { signIn, getProviders, getSession } from "next-auth/react" // Add these imports
+import { signIn, getSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Chrome, Mail, Lock } from "lucide-react"
+import { Chrome } from "lucide-react"
 
 export default function SignInPage() {
-	const [email, setEmail] = useState("")
-	const [password, setPassword] = useState("")
 	const [isLoading, setIsLoading] = useState(false)
-	const [providers, setProviders] = useState<any>(null) // Add this
 	const router = useRouter()
 
-	// Add this useEffect
 	useEffect(() => {
-		const setupProviders = async () => {
-			const res = await getProviders()
-			setProviders(res)
-		}
-
 		const checkSession = async () => {
 			const session = await getSession()
 			if (session) {
@@ -31,21 +19,9 @@ export default function SignInPage() {
 			}
 		}
 
-		setupProviders()
 		checkSession()
 	}, [router])
 
-	const handleEmailSignIn = async (e: React.FormEvent) => {
-		e.preventDefault()
-		setIsLoading(true)
-		// Simulate sign in process (keep as is for now)
-		setTimeout(() => {
-			setIsLoading(false)
-			router.push("/dashboard")
-		}, 1000)
-	}
-
-	// Replace this function
 	const handleGoogleSignIn = async () => {
 		try {
 			setIsLoading(true)
@@ -69,54 +45,11 @@ export default function SignInPage() {
 				<CardContent className="space-y-4">
 					<Button variant="outline" className="w-full bg-transparent" onClick={handleGoogleSignIn} disabled={isLoading}>
 						<Chrome className="mr-2 h-4 w-4" />
-						Continue with Google
+						{isLoading ? "Signing in..." : "Continue with Google"}
 					</Button>
-					{/* Rest of your existing JSX stays the same */}
-					<div className="relative">
-						<div className="absolute inset-0 flex items-center">
-							<Separator className="w-full" />
-						</div>
-						<div className="relative flex justify-center text-xs uppercase">
-							<span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-						</div>
-					</div>
-					<form onSubmit={handleEmailSignIn} className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
-							<div className="relative">
-								<Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-								<Input
-									id="email"
-									type="email"
-									placeholder="staff@42school.fr"
-									value={email}
-									onChange={(e) => setEmail(e.target.value)}
-									className="pl-10"
-									required
-								/>
-							</div>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="password">Password</Label>
-							<div className="relative">
-								<Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-								<Input
-									id="password"
-									type="password"
-									placeholder="Enter your password"
-									value={password}
-									onChange={(e) => setPassword(e.target.value)}
-									className="pl-10"
-									required
-								/>
-							</div>
-						</div>
-						<Button type="submit" className="w-full" disabled={isLoading}>
-							{isLoading ? "Signing in..." : "Sign in"}
-						</Button>
-					</form>
 					<div className="text-center text-sm text-muted-foreground">
-						<p>Demo Mode - Any credentials will work</p>
+						<p>Use your <strong>@irbid.42.tech</strong> Google account to sign in</p>
+						<p className="text-xs mt-1 opacity-75">Only Irbid 42 School staff can access this system</p>
 					</div>
 				</CardContent>
 			</Card>

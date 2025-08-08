@@ -21,11 +21,22 @@ const authOptions = {
 		error: "/api/auth/error",
 	},
 	debug: process.env.NODE_ENV === "development",
+	secret: process.env.NEXTAUTH_SECRET,
 	callbacks: {
 		async signIn({ user, account }: any) {
 			console.log("SignIn callback triggered:", { user: user.email, provider: account?.provider })
 
 			if (account?.provider === "google") {
+				// Check if user email has the required domain
+				const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN || "@irbid.42.tech"
+				if (!user.email || !user.email.endsWith(allowedDomain)) {
+					console.log("❌ Access denied: Invalid domain for email:", user.email)
+					console.log("Required domain:", allowedDomain)
+					return false
+				}
+
+				console.log("✅ Domain validation passed:", user.email)
+
 				try {
 					// Check if user exists in staff table
 					const { data: staff, error } = await supabase
@@ -98,4 +109,4 @@ const authOptions = {
 
 const handler = NextAuth(authOptions)
 
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST, authOptions }

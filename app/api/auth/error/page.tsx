@@ -1,12 +1,12 @@
 "use client"
 
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 
-export default function AuthError() {
+function AuthErrorContent() {
 	const searchParams = useSearchParams()
 	const [currentUrl, setCurrentUrl] = useState('')
 	const error = searchParams?.get('error')
@@ -21,7 +21,7 @@ export default function AuthError() {
 			case 'Configuration':
 				return 'There is a problem with the server configuration.'
 			case 'AccessDenied':
-				return 'Access denied. You do not have permission to sign in.'
+				return 'Access denied. Only users with @irbid.42.tech email addresses can access this system. Please sign in with your official Irbid 42 School Google account.'
 			case 'Verification':
 				return 'The verification token has expired or has already been used.'
 			case 'OAuthCallback':
@@ -88,5 +88,21 @@ export default function AuthError() {
 				</CardContent>
 			</Card>
 		</div>
+	)
+}
+
+export default function AuthError() {
+	return (
+		<Suspense fallback={
+			<div className="min-h-screen flex items-center justify-center bg-gray-50">
+				<Card className="w-full max-w-md">
+					<CardContent className="p-6">
+						<div className="text-center">Loading...</div>
+					</CardContent>
+				</Card>
+			</div>
+		}>
+			<AuthErrorContent />
+		</Suspense>
 	)
 }
