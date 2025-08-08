@@ -10,6 +10,7 @@ import { StudentTable } from "@/components/student-table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Filter, Download, Users, RefreshCw, AlertCircle, Database } from "lucide-react"
+import { useStudentCache } from "@/contexts/StudentCacheContext"
 
 interface Student {
 	uuid: string
@@ -24,7 +25,6 @@ interface Student {
 	wallet: number
 	correctionPoint: number
 	location: string
-	// Enhanced fields (may or may not exist in current DB)
 	blocks?: number
 	votes_given?: number
 	votes_received?: number
@@ -44,7 +44,6 @@ interface Student {
 	gender?: string
 	coding_level?: string
 	context?: string
-	// Other fields
 	grades?: {
 		[key: string]: {
 			grade: number
@@ -59,6 +58,10 @@ interface Student {
 		priority: string
 		author: string
 		createdAt: string
+		// Rush-specific fields
+		rush_project?: string
+		rush_status?: string
+		rush_score?: number
 	}>
 	hasExamData?: boolean
 	hasRushData?: boolean
@@ -84,94 +87,30 @@ interface StudentsResponse {
 }
 
 export default function StudentsPage() {
-	const [students, setStudents] = useState<Student[]>([])
 	const [filteredStudents, setFilteredStudents] = useState<Student[]>([])
 	const [searchTerm, setSearchTerm] = useState("")
 	const [statusFilter, setStatusFilter] = useState("all")
 	const [levelFilter, setLevelFilter] = useState("all")
 	const [rushFilter, setRushFilter] = useState("all")
-	const [isLoading, setIsLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
 	const [summary, setSummary] = useState<StudentsResponse['summary'] | null>(null)
 	const [debugInfo, setDebugInfo] = useState<string | null>(null)
+	
+	// Use cached student data
+	const { students, loading: isLoading, error, fetchStudents: refetchStudents, isDataStale, refreshCache } = useStudentCache()
 
-	// Fetch students data from API
-	const fetchStudents = async () => {
-		try {
-			setIsLoading(true)
-			setError(null)
-			setDebugInfo(null)
-
-			console.log('🔍 Fetching students from API...')
-			const response = await fetch('/api/students')
-
-			console.log('📡 Response status:', response.status)
-			console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()))
-
-			// Get the raw response text first
-			const responseText = await response.text()
-			console.log('📄 Raw response (first 500 chars):', responseText.substring(0, 500))
-
-			// Try to parse as JSON
-			let data: StudentsResponse
-			try {
-				data = JSON.parse(responseText)
-			} catch (parseError) {
-				console.error('❌ JSON parse error:', parseError)
-				throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}...`)
-			}
-
-			console.log('📊 Parsed API Response:', data)
-
-			if (!response.ok) {
-				const errorMessage = data.error || `HTTP ${response.status}: ${response.statusText}`
-				const details = data.details || data.message || 'No additional details'
-				console.error('❌ API Error:', errorMessage, details)
-				setDebugInfo(`API Error: ${errorMessage}\nDetails: ${details}`)
-				throw new Error(errorMessage)
-			}
-
-			if (data.success) {
-				console.log('✅ Successfully loaded students:', data.students?.length || 0)
-
-				// Log sample student to verify data structure
-				if (data.students && data.students.length > 0) {
-					const sampleStudent = data.students[0]
-					console.log('📋 Sample student data:', {
-						username: sampleStudent.login,
-						name: sampleStudent.firstName,
-						email: sampleStudent.email,
-						profileImageUrl: sampleStudent.profileImageUrl,
-						level: sampleStudent.level,
-						performance: sampleStudent.performance
-					})
-				}
-
-				setStudents(data.students || [])
-				setFilteredStudents(data.students || [])
-				setSummary(data.summary || null)
-				setDebugInfo(`Successfully loaded ${data.students?.length || 0} students with clean names and images`)
-			} else {
-				const errorMessage = data.message || data.error || 'Failed to load students'
-				console.error('❌ API returned success=false:', errorMessage)
-				setDebugInfo(`API Error: ${errorMessage}`)
-				throw new Error(errorMessage)
-			}
-
-		} catch (error) {
-			console.error('❌ Error fetching students:', error)
-			const errorMessage = error instanceof Error ? error.message : 'Failed to load students'
-			setError(errorMessage)
-			setDebugInfo(errorMessage)
-		} finally {
-			setIsLoading(false)
-		}
+	// Refresh students data (force refetch from API)
+	const refreshStudents = async () => {
+		await refreshCache() // Use the context's refresh method
 	}
 
-	// Load data on component mount
+	// Update filtered students when cached students change
 	useEffect(() => {
-		fetchStudents()
-	}, [])
+		if (students.length > 0) {
+			applyFilters(searchTerm, statusFilter, levelFilter, rushFilter)
+		} else {
+			setFilteredStudents([])
+		}
+	}, [students, searchTerm, statusFilter, levelFilter, rushFilter])
 
 	const handleSearch = (term: string) => {
 		setSearchTerm(term)
@@ -227,8 +166,13 @@ export default function StudentsPage() {
 	const getStudentStatus = (student: Student) => {
 		const averageGrade = getAverageGrade(student)
 		const level = student.level || 0
-		const rushRating = getBestRushRating(student)
 		const performance = student.performance || 0
+		const communication = student.communication || 0
+		const professionalism = student.professionalism || 0
+		
+		// Get validated projects count from database field (more accurate)
+		const validatedProjects = student.validated_projects || 0
+		const blocks = student.blocks || 0
 
 		// Count valid exams with proper thresholds
 		let validExams = 0
@@ -248,46 +192,147 @@ export default function StudentsPage() {
 			})
 		}
 
-		// Peer-to-peer evaluation
+		// Analyze rush notes data if available
+		let rushPerformance = 0
+		let rushParticipation = 0
+		let rushSuccessRate = 0
+
+		if (student.notes && Array.isArray(student.notes)) {
+			const rushNotes = student.notes.filter(note => note.category === 'rush')
+			if (rushNotes.length > 0) {
+				rushParticipation = rushNotes.length
+				
+				// Count successful rush evaluations
+				const successfulRushes = rushNotes.filter(note => {
+					// Check if it's marked as successful or has a good score
+					return note.rush_status === 'success' || 
+						   (note.rush_score && note.rush_score >= 70)
+				}).length
+
+				rushSuccessRate = successfulRushes / rushNotes.length
+
+				// Calculate average rush performance from scores
+				const rushScores = rushNotes
+					.map(note => note.rush_score)
+					.filter(score => score !== null && score !== undefined)
+				
+				if (rushScores.length > 0) {
+					rushPerformance = rushScores.reduce((sum, score) => sum + score, 0) / rushScores.length
+				}
+			}
+		}
+
+		// Peer-to-peer evaluation metrics
 		const reviewsGiven = student.reviewer || 0
 		const reviewsReceived = student.reviewee || 0
 		const votesGiven = student.votes_given || 0
 		const votesReceived = student.votes_received || 0
+		const feedbacksReceived = student.feedbacks_received || 0
 
-		// Check for potential cheaters
-		// Level is max 5, if someone has high level but no valid exam scores, suspicious
-		if (level > 2.0 && validExams === 0) {
+		// Calculate interaction and engagement scores
+		const totalInteractions = reviewsGiven + reviewsReceived + votesGiven + votesReceived
+		const peerEngagement = reviewsGiven + votesGiven
+		const helpfulness = reviewsGiven > 0 ? Math.min(reviewsGiven / Math.max(reviewsReceived, 1), 2) : 0
+
+		// Final exam status (important milestone)
+		const finalExamValidated = student.final_exam_validated || false
+
+		// Rush validation analysis (from direct field)
+		const rushValidationData = student.validated_rushes_participated || '0/0'
+		const [rushValidated, rushTotal] = rushValidationData.split('/').map(n => parseInt(n) || 0)
+		const rushValidationRate = rushTotal > 0 ? rushValidated / rushTotal : 0
+
+		// Exam participation analysis  
+		const examParticipation = student.passed_exams_registered || '0/0'
+		const [examsPassed, examsRegistered] = examParticipation.split('/').map(n => parseInt(n) || 0)
+		const examSuccessRate = examsRegistered > 0 ? examsPassed / examsRegistered : 0
+
+		// 1. INACTIVE/UNAVAILABLE - Priority check
+		if (student.location === "unavailable") {
 			return {
-				status: 'cheater',
-				label: 'Potential Cheater',
-				color: 'bg-red-100 text-red-800 border-red-300',
-				description: 'High level but no valid exam scores'
+				status: 'inactive',
+				label: 'Inactive',
+				color: 'bg-slate-100 text-slate-600 border-slate-300',
+				description: 'Not currently active in the piscine'
 			}
 		}
 
-		// Check for other cheating patterns - level too high for valid exam performance
-		if (level > 3.0 && averageGrade > 0 && averageGrade < 30) {
+		// 2. BLOCKED - Students who have behavioral issues or violations
+		if (blocks > 0) {
 			return {
-				status: 'cheater',
-				label: 'Suspicious Activity',
-				color: 'bg-red-100 text-red-800 border-red-300',
-				description: 'Level too high for exam performance'
+				status: 'blocked',
+				label: 'Blocked',
+				color: 'bg-red-200 text-red-800 border-red-400',
+				description: `${blocks} block(s) - disciplinary issues`
 			}
 		}
 
-		// Check peer-to-peer behavior (only if they have received enough feedback)
-		const isPoorPeer = reviewsGiven < (reviewsReceived / 2) && reviewsReceived > 10
-		const isSelfish = votesGiven < (votesReceived / 3) && votesReceived > 15
+		// 3. DROPPED OUT - Very clear indicators of dropout
+		if (level <= 1.5 && validatedProjects === 0 && totalInteractions < 5 && examsRegistered === 0) {
+			return {
+				status: 'dropped',
+				label: 'Dropped Out',
+				color: 'bg-slate-100 text-slate-500 border-slate-300',
+				description: 'Minimal participation, likely dropped out'
+			}
+		}
 
-		// Excellence criteria (level max 5, so 4+ is excellent)
-		// Updated criteria: high level + good performance + valid exams
-		if (level >= 4.0 && (performance >= 80 || averageGrade >= 70) && validExams >= 3) {
-			if (isPoorPeer || isSelfish) {
+		// 4. NEEDS ATTENTION - Only for genuine red flags
+		// Case A: High level but no exam validation (potential cheating)
+		if (level >= 5.0 && examsPassed === 0 && examsRegistered > 1) {
+			return {
+				status: 'needs-attention',
+				label: 'Needs Attention',
+				color: 'bg-red-100 text-red-600 border-red-300',
+				description: 'High level without validated exams - investigate'
+			}
+		}
+
+		// Case B: Extremely high level with minimal legitimate progress indicators
+		if (level >= 6.0 && validatedProjects < 5 && totalInteractions < 10) {
+			return {
+				status: 'needs-attention',
+				label: 'Needs Attention', 
+				color: 'bg-red-100 text-red-600 border-red-300',
+				description: 'Level inconsistent with project/peer metrics'
+			}
+		}
+
+		// Case C: Final exam passed but very low level (grade manipulation?)
+		if (finalExamValidated && level < 3.0 && validatedProjects < 8) {
+			return {
+				status: 'needs-attention',
+				label: 'Needs Attention',
+				color: 'bg-red-100 text-red-600 border-red-300',
+				description: 'Final exam passed but low progress metrics'
+			}
+		}
+
+		// 5. LEGITIMATE PERFORMANCE CLASSIFICATIONS
+		// Check for poor peer behavior (but still legitimate students)
+		const isPoorPeer = (reviewsGiven < Math.max(reviewsReceived * 0.3, 1)) && reviewsReceived > 10
+		const isVoteHoarder = (votesGiven < Math.max(votesReceived * 0.25, 1)) && votesReceived > 15
+
+		// EXCELLENT: Top tier students (Level 4.5+, strong metrics across the board)
+		if (level >= 4.5 && validatedProjects >= 12 && (performance >= 3 || communication >= 3)) {
+			// Check if rush performance supports excellent status
+			const rushSupportsExcellent = rushParticipation === 0 || rushSuccessRate >= 0.6 || rushPerformance >= 70
+			
+			if (!rushSupportsExcellent && rushParticipation > 0) {
+				return {
+					status: 'needs-attention',
+					label: 'Needs Attention',
+					color: 'bg-red-100 text-red-600 border-red-300',
+					description: 'High level but poor rush performance'
+				}
+			}
+
+			if (isPoorPeer || isVoteHoarder) {
 				return {
 					status: 'excellent-selfish',
-					label: 'Excellent (Poor Peer)',
-					color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-					description: 'Great student but doesn\'t help others enough'
+					label: 'Excellent (Selfish)',
+					color: 'bg-amber-100 text-amber-800 border-amber-300',
+					description: 'Excellent student but could help peers more'
 				}
 			}
 			return {
@@ -298,50 +343,73 @@ export default function StudentsPage() {
 			}
 		}
 
-		// Good criteria - relaxed for better classification
-		if (level >= 3.0 && (performance >= 70 || averageGrade >= 60) && validExams >= 2) {
-			if (isPoorPeer || isSelfish) {
+		// GOOD: Solid performers (Level 3.0+, good progress)
+		if (level >= 3.0 && validatedProjects >= 8 && examSuccessRate >= 0.5) {
+			// Factor in rush performance for good students
+			const rushPerformanceCheck = rushParticipation === 0 || rushSuccessRate >= 0.4 || rushPerformance >= 60
+			
+			if (isPoorPeer || isVoteHoarder) {
 				return {
 					status: 'good-selfish',
-					label: 'Good (Poor Peer)',
+					label: 'Good (Selfish)',
 					color: 'bg-orange-100 text-orange-800 border-orange-300',
-					description: 'Good student but low peer participation'
+					description: `Good student but ${rushPerformanceCheck ? 'low peer engagement' : 'poor rush + peer performance'}`
 				}
 			}
+			
+			if (!rushPerformanceCheck && rushParticipation > 0) {
+				return {
+					status: 'struggling',
+					label: 'Struggling',
+					color: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+					description: 'Good level progress but struggling with rush projects'
+				}
+			}
+			
 			return {
 				status: 'good',
 				label: 'Good',
 				color: 'bg-blue-100 text-blue-800 border-blue-300',
-				description: 'Good performance and collaborative'
+				description: 'Good performance and team player'
 			}
 		}
 
-		// Average criteria
-		if (level >= 2.0 && (performance >= 50 || averageGrade >= 50) && validExams >= 1) {
+		// AVERAGE: Middle tier students (Level 2.0+, reasonable progress)
+		if (level >= 2.0 && (validatedProjects >= 4 || examsPassed >= 1 || rushValidated >= 1)) {
 			return {
 				status: 'average',
 				label: 'Average',
-				color: 'bg-gray-100 text-gray-800 border-gray-300',
-				description: 'Meets basic requirements'
+				color: 'bg-slate-100 text-slate-700 border-slate-300',
+				description: 'Steady progress, meeting expectations'
 			}
 		}
 
-		// Inactive check
-		if (student.location === "unavailable") {
+		// STRUGGLING: Students who are trying but facing challenges
+		if (level >= 1.0 && (totalInteractions >= 15 || examsRegistered >= 2 || rushTotal >= 1)) {
 			return {
-				status: 'inactive',
-				label: 'Inactive',
-				color: 'bg-slate-100 text-slate-600 border-slate-300',
-				description: 'Not currently active'
+				status: 'struggling',
+				label: 'Struggling',
+				color: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+				description: 'Active participation but needs improvement'
 			}
 		}
 
-		// Needs attention - only for truly poor performance
+		// BEGINNER: New or very early students with minimal data
+		if (level < 2.0 && validatedProjects < 3) {
+			return {
+				status: 'beginner',
+				label: 'Beginner',
+				color: 'bg-purple-100 text-purple-700 border-purple-300',
+				description: 'Early in piscine journey'
+			}
+		}
+
+		// INACTIVE: Students with very minimal engagement
 		return {
-			status: 'needs-attention',
-			label: 'Needs Attention',
-			color: 'bg-red-100 text-red-600 border-red-300',
-			description: 'Below expected performance or no valid exams'
+			status: 'inactive-low',
+			label: 'Low Activity',
+			color: 'bg-gray-100 text-gray-600 border-gray-300',
+			description: 'Very low engagement and progress'
 		}
 	}
 
@@ -362,7 +430,7 @@ export default function StudentsPage() {
 			)
 		}
 
-		// Status filter - updated to use new status calculation
+		// Status filter - updated to handle new categories
 		if (status !== "all") {
 			filtered = filtered.filter((student) => {
 				const studentStatus = getStudentStatus(student)
@@ -374,12 +442,18 @@ export default function StudentsPage() {
 						return studentStatus.status === 'good' || studentStatus.status === 'good-selfish'
 					case "average":
 						return studentStatus.status === 'average'
+					case "struggling":
+						return studentStatus.status === 'struggling'
+					case "beginner":
+						return studentStatus.status === 'beginner'
 					case "inactive":
-						return studentStatus.status === 'inactive'
+						return studentStatus.status === 'inactive' || studentStatus.status === 'inactive-low'
+					case "dropped":
+						return studentStatus.status === 'dropped'
+					case "blocked":
+						return studentStatus.status === 'blocked'
 					case "needs-attention":
 						return studentStatus.status === 'needs-attention'
-					case "cheater":
-						return studentStatus.status === 'cheater'
 					case "poor-peer":
 						return studentStatus.status === 'excellent-selfish' || studentStatus.status === 'good-selfish'
 					default:
@@ -546,7 +620,7 @@ export default function StudentsPage() {
 							<Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
 							<p className="text-muted-foreground mb-4">Failed to load student data</p>
 							<div className="space-y-2">
-								<Button onClick={fetchStudents} className="flex items-center gap-2">
+								<Button onClick={refreshStudents} className="flex items-center gap-2">
 									<RefreshCw className="h-4 w-4" />
 									Try Again
 								</Button>
@@ -572,8 +646,13 @@ export default function StudentsPage() {
 						</p>
 					)}
 				</div>
-				<div className="flex gap-2">
-					<Button variant="outline" onClick={fetchStudents} className="flex items-center gap-2">
+				<div className="flex gap-2 items-center">
+					{!isLoading && students.length > 0 && isDataStale() && (
+						<Badge variant="outline" className="text-xs">
+							Cached Data
+						</Badge>
+					)}
+					<Button variant="outline" onClick={refreshStudents} className="flex items-center gap-2">
 						<RefreshCw className="h-4 w-4" />
 						Refresh
 					</Button>
@@ -584,7 +663,7 @@ export default function StudentsPage() {
 				</div>
 			</div>
 
-			<div className="grid gap-4 md:grid-cols-5">
+			<div className="grid gap-4 md:grid-cols-6">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">Total Students</CardTitle>
@@ -613,40 +692,53 @@ export default function StudentsPage() {
 
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Potential Cheaters</CardTitle>
-						<Badge className="bg-red-100 text-red-800 border-red-200">⚠️</Badge>
+						<CardTitle className="text-sm font-medium">Good</CardTitle>
+						<Badge className="bg-blue-100 text-blue-800 border-blue-200">✓</Badge>
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
-							{students.filter((s) => getStudentStatus(s).status === 'cheater').length}
+							{students.filter((s) => ['good', 'good-selfish'].includes(getStudentStatus(s).status)).length}
 						</div>
-						<p className="text-xs text-muted-foreground">Suspicious activity</p>
+						<p className="text-xs text-muted-foreground">Solid progress</p>
 					</CardContent>
 				</Card>
 
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Poor Peers</CardTitle>
-						<Badge className="bg-orange-100 text-orange-800 border-orange-200">👥</Badge>
+						<CardTitle className="text-sm font-medium">Average</CardTitle>
+						<Badge className="bg-slate-100 text-slate-700 border-slate-200">📊</Badge>
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
-							{students.filter((s) => getStudentStatus(s).status.includes('selfish')).length}
+							{students.filter((s) => getStudentStatus(s).status === 'average').length}
 						</div>
-						<p className="text-xs text-muted-foreground">Low peer participation</p>
+						<p className="text-xs text-muted-foreground">Meeting expectations</p>
 					</CardContent>
 				</Card>
 
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
-						<Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">!</Badge>
+						<CardTitle className="text-sm font-medium">Struggling</CardTitle>
+						<Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">⚡</Badge>
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
-							{students.filter((s) => getStudentStatus(s).status === 'needs-attention').length}
+							{students.filter((s) => getStudentStatus(s).status === 'struggling').length}
 						</div>
-						<p className="text-xs text-muted-foreground">Requires review</p>
+						<p className="text-xs text-muted-foreground">Need support</p>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">Needs Review</CardTitle>
+						<Badge className="bg-red-100 text-red-600 border-red-200">⚠️</Badge>
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">
+							{students.filter((s) => ['needs-attention', 'blocked'].includes(getStudentStatus(s).status)).length}
+						</div>
+						<p className="text-xs text-muted-foreground">Requires attention</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -678,10 +770,13 @@ export default function StudentsPage() {
 									<SelectItem value="excellent">Excellent</SelectItem>
 									<SelectItem value="good">Good</SelectItem>
 									<SelectItem value="average">Average</SelectItem>
+									<SelectItem value="struggling">Struggling</SelectItem>
+									<SelectItem value="beginner">Beginner</SelectItem>
+									<SelectItem value="dropped">Dropped Out</SelectItem>
+									<SelectItem value="blocked">Blocked</SelectItem>
 									<SelectItem value="needs-attention">Needs Attention</SelectItem>
-									<SelectItem value="cheater">Potential Cheaters</SelectItem>
 									<SelectItem value="poor-peer">Poor Peers</SelectItem>
-									<SelectItem value="inactive">Inactive</SelectItem>
+									<SelectItem value="inactive">Inactive/Low Activity</SelectItem>
 								</SelectContent>
 							</Select>
 
