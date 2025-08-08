@@ -5,548 +5,832 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
 } from "@/components/ui/dialog"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
-import { Trophy, Users, MessageSquare, Edit, Search, Plus, Check, X } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Trophy, MessageSquare, Edit, Search, Plus, Check, X, Loader2, AlertCircle } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// Mock rush data
 const rushProjects = [
-  { id: "square", name: "Square", description: "Basic geometric calculations and display" },
-  { id: "skyscraper", name: "Skyscraper", description: "Complex puzzle solving with constraints" },
-  { id: "rosetta-stone", name: "Rosetta Stone", description: "Multi-language translation system" },
+	{
+		id: "square",
+		name: "Square",
+		description: "Basic geometric calculations and display",
+		icon: "🟨",
+		color: "bg-yellow-50 border-yellow-200"
+	},
+	{
+		id: "sky-scraper",
+		name: "Sky Scraper",
+		description: "Complex puzzle solving with constraints",
+		icon: "🏗️",
+		color: "bg-blue-50 border-blue-200"
+	},
+	{
+		id: "rosetta-stone",
+		name: "Rosetta Stone",
+		description: "Multi-language translation system",
+		icon: "🗿",
+		color: "bg-stone-50 border-stone-200"
+	},
 ]
 
-// All available students
-const allStudents = [
-  { uuid: "f11517a7-50a0-410e-bdb4-5910269ebbda", name: "Yasser AL-AGOUL", username: "yasser.al-agoul" },
-  { uuid: "a22518b8-61b1-521f-cdc5-6021370fcceb", name: "Marie DUBOIS", username: "marie.dubois" },
-  { uuid: "b33629c9-72c2-632g-ded6-7132481gddfc", name: "John SMITH", username: "john.smith" },
-  { uuid: "c44740d0-83d3-743h-efe7-8243592heegc", name: "Alice JOHNSON", username: "alice.johnson" },
-  { uuid: "d55851e1-94e4-854i-fgf8-9354603iggfd", name: "Bob WILSON", username: "bob.wilson" },
-  { uuid: "e66962f2-a5f5-965j-ghg9-a465714jhhge", name: "Emma BROWN", username: "emma.brown" },
-  { uuid: "f77073g3-b6g6-a76k-hih0-b576825kiihf", name: "David DAVIS", username: "david.davis" },
-  { uuid: "g88184h4-c7h7-b87l-iji1-c687936ljjig", name: "Sarah MILLER", username: "sarah.miller" },
-  { uuid: "h99295i5-d8i8-c98m-jkj2-d798047mkkjh", name: "Michael GARCIA", username: "michael.garcia" },
+const rushStatusOptions = [
+	{ value: "pending", label: "Pending Evaluation", color: "bg-gray-100 text-gray-800", icon: "⏳" },
+	{ value: "success", label: "Successful Completion", color: "bg-green-100 text-green-800", icon: "✅" },
+	{ value: "failed", label: "Failed - Needs Improvement", color: "bg-red-100 text-red-800", icon: "❌" },
+	{ value: "absent", label: "Absent - Did Not Attend", color: "bg-orange-100 text-orange-800", icon: "🚫" },
 ]
 
-// Mock teams data for each rush
-const initialMockTeams = {
-  square: [
-    {
-      id: "team-1",
-      name: "Team 1",
-      members: [
-        {
-          uuid: "f11517a7-50a0-410e-bdb4-5910269ebbda",
-          name: "Yasser AL-AGOUL",
-          username: "yasser.al-agoul",
-          rating: 3,
-          feedback: "Excellent problem-solving skills and great teamwork. Led the team effectively.",
-        },
-        {
-          uuid: "a22518b8-61b1-521f-cdc5-6021370fcceb",
-          name: "Marie DUBOIS",
-          username: "marie.dubois",
-          rating: 3,
-          feedback: "Strong technical skills and good collaboration. Contributed significantly to the solution.",
-        },
-        {
-          uuid: "b33629c9-72c2-632g-ded6-7132481gddfc",
-          name: "John SMITH",
-          username: "john.smith",
-          rating: 2,
-          feedback: "Participated actively but struggled with some advanced concepts. Showed good effort.",
-        },
-      ],
-    },
-    {
-      id: "team-2",
-      name: "Team 2",
-      members: [
-        {
-          uuid: "c44740d0-83d3-743h-efe7-8243592heegc",
-          name: "Alice JOHNSON",
-          username: "alice.johnson",
-          rating: 1,
-          feedback: "Registered for the rush but did not attend on the day.",
-        },
-        {
-          uuid: "d55851e1-94e4-854i-fgf8-9354603iggfd",
-          name: "Bob WILSON",
-          username: "bob.wilson",
-          rating: 2,
-          feedback: "Attended and tried hard but failed to complete the project successfully.",
-        },
-        {
-          uuid: "e66962f2-a5f5-965j-ghg9-a465714jhhge",
-          name: "Emma BROWN",
-          username: "emma.brown",
-          rating: 3,
-          feedback: "Great performance, solved the problem efficiently and helped teammates.",
-        },
-      ],
-    },
-  ],
-  skyscraper: [
-    {
-      id: "team-1",
-      name: "Team 1",
-      members: [
-        {
-          uuid: "f11517a7-50a0-410e-bdb4-5910269ebbda",
-          name: "Yasser AL-AGOUL",
-          username: "yasser.al-agoul",
-          rating: 0,
-          feedback: "",
-        },
-        {
-          uuid: "a22518b8-61b1-521f-cdc5-6021370fcceb",
-          name: "Marie DUBOIS",
-          username: "marie.dubois",
-          rating: 3,
-          feedback: "Outstanding performance in complex problem solving. Excellent algorithmic thinking.",
-        },
-        {
-          uuid: "f77073g3-b6g6-a76k-hih0-b576825kiihf",
-          name: "David DAVIS",
-          username: "david.davis",
-          rating: 2,
-          feedback: "Good effort but couldn't complete all requirements within the time limit.",
-        },
-      ],
-    },
-  ],
-  "rosetta-stone": [],
+interface Student {
+	uuid: string
+	firstName: string
+	lastName: string
+	login: string
+	name?: string
+	username?: string
+	email?: string
+	level?: number
+	coding_level?: string
+	profileImageUrl?: string | null
 }
 
-// Rating options
-const ratingOptions = [
-  { value: 0, label: "Did not participate", color: "bg-gray-100 text-gray-800" },
-  { value: 1, label: "Registered but absent", color: "bg-red-100 text-red-800" },
-  { value: 2, label: "Attended but failed", color: "bg-orange-100 text-orange-800" },
-  { value: 3, label: "Successful completion", color: "bg-green-100 text-green-800" },
-]
+interface RushNote {
+	id: string
+	student_id: string
+	title: string
+	content: string
+	author: string
+	rush_project: string
+	rush_status: string
+	rush_score?: number
+	created_at: string
+	updated_at: string
+	students?: Student
+}
+
+interface RushSummary {
+	[project: string]: {
+		total_students: number
+		successful: number
+		failed: number
+		absent: number
+		pending: number
+		average_score: number
+		students: Array<{
+			uuid: string
+			name: string
+			username: string
+			status: string
+			score?: number
+		}>
+	}
+}
 
 export default function RushEvaluationPage() {
-  const [selectedRush, setSelectedRush] = useState("square")
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
-  const [teams, setTeams] = useState(initialMockTeams)
-  const [editingMember, setEditingMember] = useState<any>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isAddingTeam, setIsAddingTeam] = useState(false)
-  const [newTeamMembers, setNewTeamMembers] = useState<string[]>([])
-  const [searchOpen, setSearchOpen] = useState(false)
+	const [students, setStudents] = useState<Student[]>([])
+	const [filteredStudents, setFilteredStudents] = useState<Student[]>([])
+	const [selectedRush, setSelectedRush] = useState<string>(rushProjects[0].id)
+	const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+	const [rushNotes, setRushNotes] = useState<RushNote[]>([])
+	const [rushSummary, setRushSummary] = useState<RushSummary>({})
+	
+	// Search and selection states
+	const [isSelectingStudent, setIsSelectingStudent] = useState(false)
+	const [searchTerm, setSearchTerm] = useState("")
+	
+	// Note dialog states
+	const [isAddingNote, setIsAddingNote] = useState(false)
+	const [isEditingNote, setIsEditingNote] = useState(false)
+	const [editingNote, setEditingNote] = useState<RushNote | null>(null)
+	const [noteTitle, setNoteTitle] = useState("")
+	const [noteContent, setNoteContent] = useState("")
+	const [noteStatus, setNoteStatus] = useState("pending")
+	const [noteScore, setNoteScore] = useState("")
+	const [noteRushProject, setNoteRushProject] = useState("")
+	
+	// Loading and error states
+	const [loading, setLoading] = useState(true)
+	const [saving, setSaving] = useState(false)
+	const [error, setError] = useState<string | null>(null)
 
-  // Temporary state for editing
-  const [tempRating, setTempRating] = useState(0)
-  const [tempFeedback, setTempFeedback] = useState("")
+	// Refs for managing focus and selections
+	const commandRef = useRef<HTMLInputElement>(null)
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+	// Helper function to get student display name
+	const getStudentDisplayName = (student: Student) => {
+		if (student.firstName && student.lastName) {
+			return `${student.firstName} ${student.lastName}`
+		}
+		return student.name || student.username || student.login || 'Unknown Student'
+	}
 
-  const currentTeams = teams[selectedRush as keyof typeof teams] || []
-  const currentTeam = selectedTeam ? currentTeams.find((team: any) => team.id === selectedTeam) : null
+	// Helper function to get student username/login
+	const getStudentUsername = (student: Student) => {
+		return student.username || student.login || 'unknown'
+	}
 
-  // Auto-select first team when rush changes
-  useEffect(() => {
-    const teamsForRush = teams[selectedRush as keyof typeof teams] || []
-    if (teamsForRush.length > 0) {
-      setSelectedTeam(teamsForRush[0].id)
-    } else {
-      setSelectedTeam(null)
-    }
-  }, [selectedRush, teams])
+	// Fetch data on component mount
+	useEffect(() => {
+		fetchStudents()
+		fetchRushNotes()
+		fetchRushSummary()
+	}, [])
 
-  // Focus textarea when dialog opens
-  useEffect(() => {
-    if (isEditDialogOpen && textareaRef.current) {
-      setTimeout(() => {
-        textareaRef.current?.focus()
-      }, 100)
-    }
-  }, [isEditDialogOpen])
+	// Filter students when search term changes
+	useEffect(() => {
+		if (!searchTerm.trim()) {
+			setFilteredStudents(students)
+		} else {
+			const filtered = students.filter(
+				(student) =>
+					getStudentDisplayName(student).toLowerCase().includes(searchTerm.toLowerCase()) ||
+					getStudentUsername(student).toLowerCase().includes(searchTerm.toLowerCase()) ||
+					(student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase()))
+			)
+			setFilteredStudents(filtered)
+		}
+	}, [students, searchTerm])
 
-  const handleEditMember = (member: any, teamId: string) => {
-    setEditingMember({ ...member, teamId })
-    setTempRating(member.rating)
-    setTempFeedback(member.feedback || "")
-    setIsEditDialogOpen(true)
-  }
+	// Re-fetch rush notes when selected rush project changes
+	useEffect(() => {
+		if (selectedRush) {
+			fetchRushNotes()
+		}
+	}, [selectedRush])
 
-  const handleSaveFeedback = () => {
-    if (!editingMember) return
+	const fetchStudents = async () => {
+		try {
+			const response = await fetch('/api/students')
+			if (!response.ok) throw new Error('Failed to fetch students')
+			
+			const data = await response.json()
+			if (data.success && data.students) {
+				setStudents(data.students)
+				setFilteredStudents(data.students)
+			}
+		} catch (error) {
+			console.error('Error fetching students:', error)
+			setError('Failed to load students')
+		} finally {
+			setLoading(false)
+		}
+	}
 
-    setTeams((prev) => ({
-      ...prev,
-      [selectedRush]: prev[selectedRush as keyof typeof prev].map((team: any) =>
-        team.id === editingMember.teamId
-          ? {
-              ...team,
-              members: team.members.map((member: any) =>
-                member.uuid === editingMember.uuid ? { ...member, rating: tempRating, feedback: tempFeedback } : member,
-              ),
-            }
-          : team,
-      ),
-    }))
+	const fetchRushNotes = async () => {
+		try {
+			const response = await fetch(`/api/rush-notes?project=${selectedRush}`)
+			if (!response.ok) throw new Error('Failed to fetch rush notes')
+			
+			const data = await response.json()
+			if (data.success) {
+				setRushNotes(data.notes || [])
+			}
+		} catch (error) {
+			console.error('Error fetching rush notes:', error)
+		}
+	}
 
-    // Close dialog and reset state
-    setIsEditDialogOpen(false)
-    setEditingMember(null)
-    setTempRating(0)
-    setTempFeedback("")
-  }
+	const fetchRushSummary = async () => {
+		try {
+			const response = await fetch('/api/rush-summary')
+			if (!response.ok) throw new Error('Failed to fetch rush summary')
+			
+			const data = await response.json()
+			if (data.success) {
+				setRushSummary(data.summary || {})
+			}
+		} catch (error) {
+			console.error('Error fetching rush summary:', error)
+		}
+	}
 
-  const handleCancelEdit = () => {
-    setIsEditDialogOpen(false)
-    setEditingMember(null)
-    setTempRating(0)
-    setTempFeedback("")
-  }
+	const handleStudentSelect = (student: Student) => {
+		setSelectedStudent(student)
+		setSearchTerm("")
+		setIsSelectingStudent(false)
+	}
 
-  const handleAddTeam = () => {
-    if (newTeamMembers.length === 3) {
-      const newTeamId = `team-${currentTeams.length + 1}`
-      const newTeam = {
-        id: newTeamId,
-        name: `Team ${currentTeams.length + 1}`,
-        members: newTeamMembers.map((uuid) => {
-          const student = allStudents.find((s) => s.uuid === uuid)
-          return {
-            uuid,
-            name: student?.name || "",
-            username: student?.username || "",
-            rating: 0,
-            feedback: "",
-          }
-        }),
-      }
+	const handleAddNote = () => {
+		if (!selectedStudent) {
+			setError("Please select a student first")
+			return
+		}
 
-      setTeams((prev) => ({
-        ...prev,
-        [selectedRush]: [...prev[selectedRush as keyof typeof prev], newTeam],
-      }))
+		setNoteTitle("")
+		setNoteContent("")
+		setNoteStatus("pending")
+		setNoteScore("")
+		setNoteRushProject(selectedRush)
+		setIsAddingNote(true)
+	}
 
-      setNewTeamMembers([])
-      setIsAddingTeam(false)
-    }
-  }
+	const handleEditNote = (note: RushNote) => {
+		setEditingNote(note)
+		setNoteTitle(note.title)
+		setNoteContent(note.content)
+		setNoteStatus(note.rush_status)
+		setNoteScore(note.rush_score?.toString() || "")
+		setIsEditingNote(true)
+	}
 
-  const getRatingBadge = (rating: number) => {
-    const option = ratingOptions.find((r) => r.value === rating)
-    return (
-      <Badge className={option?.color}>
-        {rating} - {option?.label}
-      </Badge>
-    )
-  }
+	const handleSaveNote = async () => {
+		if (!selectedStudent || !noteTitle.trim() || !noteContent.trim()) {
+			setError("Please fill in all required fields")
+			return
+		}
 
-  const getRatingStats = () => {
-    const allMembers = currentTeams.flatMap((team: any) => team.members)
-    return ratingOptions.map((option) => ({
-      ...option,
-      count: allMembers.filter((member: any) => member.rating === option.value).length,
-    }))
-  }
+		setSaving(true)
+		setError(null)
 
-  const getUsedStudentIds = () => {
-    return currentTeams.flatMap((team: any) => team.members.map((member: any) => member.uuid))
-  }
+		try {
+			const noteData = {
+				student_id: selectedStudent.uuid,
+				title: noteTitle.trim(),
+				content: noteContent.trim(),
+				category: 'rush',
+				priority: 'Medium',
+				author: 'System',
+				rush_project: noteRushProject || selectedRush,
+				rush_status: noteStatus,
+				rush_score: noteScore ? parseInt(noteScore) : null,
+			}
 
-  const getAvailableStudents = () => {
-    const usedIds = getUsedStudentIds()
-    // Also exclude students already selected for the new team
-    const allExcludedIds = [...usedIds, ...newTeamMembers]
-    return allStudents.filter((student) => !allExcludedIds.includes(student.uuid))
-  }
+			const response = await fetch('/api/rush-notes', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(noteData),
+			})
 
-  return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Rush Evaluation</h2>
-          <p className="text-muted-foreground">Evaluate student performance in rush projects</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Select value={selectedRush} onValueChange={setSelectedRush}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select Rush Project" />
-            </SelectTrigger>
-            <SelectContent>
-              {rushProjects.map((rush) => (
-                <SelectItem key={rush.id} value={rush.id}>
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-4 w-4" />
-                    {rush.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => setIsAddingTeam(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Team
-          </Button>
-        </div>
-      </div>
+			if (!response.ok) {
+				const errorData = await response.json()
+				throw new Error(errorData.error || 'Failed to save note')
+			}
 
-      {/* Rush Project Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
-            {rushProjects.find((r) => r.id === selectedRush)?.name}
-          </CardTitle>
-          <CardDescription>{rushProjects.find((r) => r.id === selectedRush)?.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            {getRatingStats().map((stat) => (
-              <div key={stat.value} className="text-center p-4 border rounded-lg">
-                <div className="text-3xl font-bold mb-2">{stat.count}</div>
-                <div className="text-sm font-medium">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+			const data = await response.json()
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Teams List */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Teams ({currentTeams.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {currentTeams.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No teams found</p>
-                <p className="text-sm text-muted-foreground">Add a team to get started</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {currentTeams.map((team: any) => (
-                  <Button
-                    key={team.id}
-                    variant={selectedTeam === team.id ? "default" : "outline"}
-                    className="w-full justify-start"
-                    onClick={() => setSelectedTeam(team.id)}
-                  >
-                    <Users className="h-4 w-4 mr-2" />
-                    {team.name}
-                    <Badge variant="secondary" className="ml-auto">
-                      {team.members.length}
-                    </Badge>
-                  </Button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+			setRushNotes(prev => [data.rushNote, ...prev])
+			setIsAddingNote(false)
+			setNoteTitle("")
+			setNoteContent("")
+			setNoteStatus("pending")
+			setNoteScore("")
 
-        {/* Team Details */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>{currentTeam ? `${currentTeam.name} - Members` : "Select a team to view members"}</CardTitle>
-            {currentTeam && <CardDescription>Evaluate each team member's performance</CardDescription>}
-          </CardHeader>
-          <CardContent>
-            {!currentTeam ? (
-              <div className="text-center py-12">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Select a team from the left to view and edit member evaluations</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {currentTeam.members.map((member: any) => (
-                  <div key={member.uuid} className="flex items-start justify-between p-4 border rounded-lg">
-                    <div className="flex items-start space-x-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarFallback className="text-sm">
-                          {member.name
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-2">
-                        <div>
-                          <div className="font-medium">{member.name}</div>
-                          <div className="text-sm text-muted-foreground">{member.username}</div>
-                        </div>
-                        <div>{getRatingBadge(member.rating)}</div>
-                        {member.feedback && (
-                          <div className="text-sm bg-muted p-3 rounded max-w-md">
-                            <div className="flex items-center gap-1 mb-1">
-                              <MessageSquare className="h-3 w-3" />
-                              <span className="font-medium text-xs">Feedback:</span>
-                            </div>
-                            {member.feedback}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => handleEditMember(member, currentTeam.id)}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+			fetchRushSummary()
+		} catch (error) {
+			console.error('Error saving rush note:', error)
+			setError(error instanceof Error ? error.message : 'Failed to save note')
+		} finally {
+			setSaving(false)
+		}
+	}
 
-      {/* Add Team Dialog */}
-      <Dialog open={isAddingTeam} onOpenChange={setIsAddingTeam}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Add New Team</DialogTitle>
-            <DialogDescription>
-              Select 3 students to form a new team for the {rushProjects.find((r) => r.id === selectedRush)?.name} rush.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-sm font-medium">Selected Members ({newTeamMembers.length}/3):</div>
-            <div className="space-y-2">
-              {newTeamMembers.map((uuid, index) => {
-                const student = allStudents.find((s) => s.uuid === uuid)
-                return (
-                  <div key={uuid} className="flex items-center justify-between p-2 border rounded">
-                    <div>
-                      <div className="font-medium">{student?.name}</div>
-                      <div className="text-sm text-muted-foreground">{student?.username}</div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setNewTeamMembers(newTeamMembers.filter((_, i) => i !== index))}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )
-              })}
-            </div>
-            {newTeamMembers.length < 3 && (
-              <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Search className="h-4 w-4 mr-2" />
-                    Add Student...
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search students..." />
-                    <CommandList>
-                      <CommandEmpty>No available students found.</CommandEmpty>
-                      <CommandGroup>
-                        {getAvailableStudents().map((student) => (
-                          <CommandItem
-                            key={student.uuid}
-                            value={student.name}
-                            onSelect={() => {
-                              if (newTeamMembers.length < 3 && !newTeamMembers.includes(student.uuid)) {
-                                setNewTeamMembers([...newTeamMembers, student.uuid])
-                              }
-                              setSearchOpen(false)
-                            }}
-                          >
-                            <div>
-                              <div className="font-medium">{student.name}</div>
-                              <div className="text-sm text-muted-foreground">{student.username}</div>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddingTeam(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddTeam} disabled={newTeamMembers.length !== 3}>
-              Create Team ({newTeamMembers.length}/3)
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+	const handleUpdateNote = async () => {
+		if (!editingNote || !noteTitle.trim() || !noteContent.trim()) {
+			setError("Please fill in all required fields")
+			return
+		}
 
-      {/* Edit Member Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Rush Evaluation</DialogTitle>
-            <DialogDescription>
-              Update rating and feedback for {editingMember?.name} in the{" "}
-              {rushProjects.find((r) => r.id === selectedRush)?.name} rush.
-            </DialogDescription>
-          </DialogHeader>
-          {editingMember && (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <Label htmlFor="rating">Rating</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {ratingOptions.map((option) => (
-                    <Button
-                      key={option.value}
-                      variant={tempRating === option.value ? "default" : "outline"}
-                      className="h-auto p-3 flex flex-col items-start text-left"
-                      onClick={() => setTempRating(option.value)}
-                    >
-                      <div className="font-semibold">
-                        {option.value} - {option.label.split(" ")[0]}
-                      </div>
-                      <div className="text-xs opacity-70">{option.label}</div>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="feedback">Feedback</Label>
-                <Textarea
-                  ref={textareaRef}
-                  id="feedback"
-                  value={tempFeedback}
-                  onChange={(e) => setTempFeedback(e.target.value)}
-                  placeholder="Add detailed feedback about the student's performance, teamwork, and technical skills..."
-                  rows={6}
-                  className="resize-none"
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={handleCancelEdit}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveFeedback}>
-              <Check className="h-4 w-4 mr-2" />
-              Save Evaluation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+		setSaving(true)
+		setError(null)
+
+		try {
+			const updateData = {
+				title: noteTitle.trim(),
+				content: noteContent.trim(),
+				rush_status: noteStatus,
+				rush_score: noteScore ? parseInt(noteScore) : null,
+			}
+
+			const response = await fetch(`/api/rush-notes/${editingNote.id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(updateData),
+			})
+
+			if (!response.ok) {
+				const errorData = await response.json()
+				throw new Error(errorData.error || 'Failed to update note')
+			}
+
+			const data = await response.json()
+
+			setRushNotes(prev =>
+				prev.map(note =>
+					note.id === editingNote.id ? data.rushNote : note
+				)
+			)
+
+			setIsEditingNote(false)
+			setEditingNote(null)
+			setNoteTitle("")
+			setNoteContent("")
+			setNoteStatus("pending")
+			setNoteScore("")
+
+			fetchRushSummary()
+		} catch (error) {
+			console.error('Error updating rush note:', error)
+			setError(error instanceof Error ? error.message : 'Failed to update note')
+		} finally {
+			setSaving(false)
+		}
+	}
+
+	const handleDeleteNote = async (noteId: string) => {
+		if (!confirm('Are you sure you want to delete this rush note?')) return
+
+		try {
+			const response = await fetch(`/api/rush-notes/${noteId}`, {
+				method: 'DELETE',
+			})
+
+			if (!response.ok) {
+				const errorData = await response.json()
+				throw new Error(errorData.error || 'Failed to delete note')
+			}
+
+			setRushNotes(prev => prev.filter(note => note.id !== noteId))
+			fetchRushSummary()
+		} catch (error) {
+			console.error('Error deleting rush note:', error)
+			setError(error instanceof Error ? error.message : 'Failed to delete note')
+		}
+	}
+
+	const getStatusBadge = (status: string) => {
+		const statusOption = rushStatusOptions.find(option => option.value === status)
+		if (!statusOption) return null
+
+		return (
+			<Badge className={statusOption.color}>
+				{statusOption.icon} {statusOption.label}
+			</Badge>
+		)
+	}
+
+	const getSelectedProject = () => {
+		return rushProjects.find(project => project.id === selectedRush) || rushProjects[0]
+	}
+
+	if (loading) {
+		return (
+			<div className="space-y-6">
+				<div className="flex items-center justify-center py-12">
+					<Loader2 className="h-8 w-8 animate-spin" />
+					<span className="ml-2">Loading rush evaluation data...</span>
+				</div>
+			</div>
+		)
+	}
+
+	const selectedProject = getSelectedProject()
+	const projectSummary = rushSummary[selectedRush] || {
+		total_students: 0,
+		successful: 0,
+		failed: 0,
+		absent: 0,
+		pending: 0,
+		average_score: 0,
+		students: []
+	}
+
+	return (
+		<div className="space-y-6">
+			<div className="flex items-center justify-between">
+				<div>
+					<h1 className="text-3xl font-bold tracking-tight">Rush Evaluation</h1>
+					<p className="text-muted-foreground">Evaluate student performance in rush projects</p>
+				</div>
+				<div className="flex items-center gap-4">
+					<Select value={selectedRush} onValueChange={setSelectedRush}>
+						<SelectTrigger className="w-[200px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{rushProjects.map((project) => (
+								<SelectItem key={project.id} value={project.id}>
+									<div className="flex items-center gap-2">
+										<span>{project.icon}</span>
+										<span>{project.name}</span>
+									</div>
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<Button onClick={handleAddNote} className="gap-2">
+						<Plus className="h-4 w-4" />
+						Add Evaluation
+					</Button>
+				</div>
+			</div>
+
+			{error && (
+				<Card className="border-red-200 bg-red-50">
+					<CardContent className="pt-6">
+						<div className="flex items-center gap-2 text-red-800">
+							<AlertCircle className="h-4 w-4" />
+							<span>{error}</span>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setError(null)}
+								className="ml-auto"
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Current Rush Project Overview */}
+			<Card className={selectedProject.color}>
+				<CardHeader>
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-3">
+							<div className="text-3xl">{selectedProject.icon}</div>
+							<div>
+								<CardTitle className="text-xl">{selectedProject.name}</CardTitle>
+								<CardDescription>{selectedProject.description}</CardDescription>
+							</div>
+						</div>
+						<div className="flex items-center gap-2">
+							<Badge variant="outline" className="gap-1">
+								<Trophy className="h-3 w-3" />
+								Avg Score: {projectSummary.average_score.toFixed(1)}
+							</Badge>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent>
+					<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+						<div className="text-center">
+							<div className="text-2xl font-bold text-blue-600">{projectSummary.total_students}</div>
+							<div className="text-sm text-muted-foreground">Total Students</div>
+						</div>
+						<div className="text-center">
+							<div className="text-2xl font-bold text-green-600">{projectSummary.successful}</div>
+							<div className="text-sm text-muted-foreground">Successful</div>
+						</div>
+						<div className="text-center">
+							<div className="text-2xl font-bold text-red-600">{projectSummary.failed}</div>
+							<div className="text-sm text-muted-foreground">Failed</div>
+						</div>
+						<div className="text-center">
+							<div className="text-2xl font-bold text-orange-600">{projectSummary.absent}</div>
+							<div className="text-sm text-muted-foreground">Absent</div>
+						</div>
+						<div className="text-center">
+							<div className="text-2xl font-bold text-gray-600">{projectSummary.pending}</div>
+							<div className="text-sm text-muted-foreground">Pending</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Student Selection */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Student Selection</CardTitle>
+					<CardDescription>Select a student to add or view evaluations</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="space-y-4">
+						<Popover open={isSelectingStudent} onOpenChange={setIsSelectingStudent}>
+							<PopoverTrigger asChild>
+								<Button
+									variant="outline"
+									role="combobox"
+									aria-expanded={isSelectingStudent}
+									className="justify-between w-full"
+								>
+									{selectedStudent ? (
+										<div className="flex items-center gap-2">
+											<Avatar className="h-6 w-6">
+												<AvatarImage src={selectedStudent.profileImageUrl || ""} />
+												<AvatarFallback>
+													{getStudentDisplayName(selectedStudent).charAt(0) || "?"}
+												</AvatarFallback>
+											</Avatar>
+											<span>{getStudentDisplayName(selectedStudent)}</span>
+											<Badge variant="secondary" className="ml-2">
+												Level {selectedStudent.level?.toFixed(1) || "0.0"}
+											</Badge>
+										</div>
+									) : (
+										<span className="text-muted-foreground">Select a student...</span>
+									)}
+									<Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-full p-0" align="start">
+								<Command>
+									<CommandInput
+										ref={commandRef}
+										placeholder="Search students..."
+										value={searchTerm}
+										onValueChange={setSearchTerm}
+									/>
+									<CommandList>
+										<CommandEmpty>No students found.</CommandEmpty>
+										<CommandGroup>
+											{filteredStudents.map((student) => (
+												<CommandItem
+													key={student.uuid}
+													value={`${getStudentDisplayName(student)} ${getStudentUsername(student)}`}
+													onSelect={() => handleStudentSelect(student)}
+												>
+													<div className="flex items-center gap-2 w-full">
+														<Avatar className="h-6 w-6">
+															<AvatarImage src={student.profileImageUrl || ""} />
+															<AvatarFallback>
+																{getStudentDisplayName(student).charAt(0) || "?"}
+															</AvatarFallback>
+														</Avatar>
+														<div className="flex-1">
+															<div className="font-medium">{getStudentDisplayName(student)}</div>
+															<div className="text-sm text-muted-foreground">@{getStudentUsername(student)}</div>
+														</div>
+														<Badge variant="outline">Level {student.level?.toFixed(1) || "0.0"}</Badge>
+														{selectedStudent?.uuid === student.uuid && (
+															<Check className="h-4 w-4 text-primary" />
+														)}
+													</div>
+												</CommandItem>
+											))}
+										</CommandGroup>
+									</CommandList>
+								</Command>
+							</PopoverContent>
+						</Popover>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Rush Notes */}
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<MessageSquare className="h-5 w-5" />
+						Rush Evaluations ({rushNotes.length})
+					</CardTitle>
+					<CardDescription>View and manage student evaluations for {selectedProject.name}</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{rushNotes.length === 0 ? (
+						<div className="text-center py-8 text-muted-foreground">
+							<MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+							<p>No evaluations yet for {selectedProject.name}</p>
+							<p className="text-sm">Select a student and add your first evaluation</p>
+						</div>
+					) : (
+						<div className="space-y-4">
+							{rushNotes.map((note) => (
+								<Card key={note.id} className="border-l-4 border-l-blue-500">
+									<CardContent className="pt-4">
+										<div className="flex items-start justify-between">
+											<div className="flex-1 space-y-2">
+												<div className="flex items-center gap-2 flex-wrap">
+													<h4 className="font-semibold">{note.title}</h4>
+													{getStatusBadge(note.rush_status)}
+													{note.rush_score !== null && (
+														<Badge variant="outline" className="gap-1">
+															<Trophy className="h-3 w-3" />
+															{note.rush_score}/100
+														</Badge>
+													)}
+												</div>
+												<div className="flex items-center gap-2 text-sm text-muted-foreground">
+													{note.students && (
+														<div className="flex items-center gap-2">
+															<Avatar className="h-6 w-6">
+																<AvatarImage src={note.students.profileImageUrl || ""} />
+																<AvatarFallback>
+																	{getStudentDisplayName(note.students).charAt(0) || "?"}
+																</AvatarFallback>
+															</Avatar>
+															<span>{getStudentDisplayName(note.students)}</span>
+														</div>
+													)}
+													<span>•</span>
+													<span>{new Date(note.created_at).toLocaleDateString()}</span>
+													<span>•</span>
+													<span>by {note.author}</span>
+												</div>
+												<p className="text-sm leading-relaxed">{note.content}</p>
+											</div>
+											<div className="flex items-center gap-2 ml-4">
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => handleEditNote(note)}
+												>
+													<Edit className="h-4 w-4" />
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => handleDeleteNote(note.id)}
+													className="text-red-600 hover:text-red-700"
+												>
+													<X className="h-4 w-4" />
+												</Button>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+							))}
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Add Note Dialog */}
+			<Dialog open={isAddingNote} onOpenChange={setIsAddingNote}>
+				<DialogContent className="sm:max-w-[600px]">
+					<DialogHeader>
+						<DialogTitle>Add Rush Evaluation</DialogTitle>
+						<DialogDescription>
+							Add evaluation for {selectedStudent ? getStudentDisplayName(selectedStudent) : 'selected student'} on {selectedProject.name}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							<Label htmlFor="rush-project">Rush Project</Label>
+							<Select value={noteRushProject} onValueChange={setNoteRushProject}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select rush project" />
+								</SelectTrigger>
+								<SelectContent>
+									{rushProjects.map((project) => (
+										<SelectItem key={project.id} value={project.id}>
+											<div className="flex items-center gap-2">
+												<span>{project.icon}</span>
+												<span>{project.name}</span>
+											</div>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="note-title">Evaluation Title</Label>
+							<Input
+								id="note-title"
+								value={noteTitle}
+								onChange={(e) => setNoteTitle(e.target.value)}
+								placeholder="Brief title for this evaluation..."
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="note-content">Evaluation Details</Label>
+							<Textarea
+								id="note-content"
+								value={noteContent}
+								onChange={(e) => setNoteContent(e.target.value)}
+								placeholder="Detailed evaluation notes..."
+								className="min-h-[100px]"
+							/>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div className="space-y-2">
+								<Label htmlFor="note-status">Status</Label>
+								<Select value={noteStatus} onValueChange={setNoteStatus}>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{rushStatusOptions.map((option) => (
+											<SelectItem key={option.value} value={option.value}>
+												{option.icon} {option.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="note-score">Score (Optional)</Label>
+								<Input
+									id="note-score"
+									type="number"
+									min="0"
+									max="100"
+									value={noteScore}
+									onChange={(e) => setNoteScore(e.target.value)}
+									placeholder="0-100"
+								/>
+							</div>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setIsAddingNote(false)}>
+							Cancel
+						</Button>
+						<Button onClick={handleSaveNote} disabled={saving}>
+							{saving ? (
+								<>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									Saving...
+								</>
+							) : (
+								'Save Evaluation'
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Edit Note Dialog */}
+			<Dialog open={isEditingNote} onOpenChange={setIsEditingNote}>
+				<DialogContent className="sm:max-w-[600px]">
+					<DialogHeader>
+						<DialogTitle>Edit Rush Evaluation</DialogTitle>
+						<DialogDescription>
+							Update evaluation details
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							<Label htmlFor="edit-note-title">Evaluation Title</Label>
+							<Input
+								id="edit-note-title"
+								value={noteTitle}
+								onChange={(e) => setNoteTitle(e.target.value)}
+								placeholder="Brief title for this evaluation..."
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="edit-note-content">Evaluation Details</Label>
+							<Textarea
+								id="edit-note-content"
+								value={noteContent}
+								onChange={(e) => setNoteContent(e.target.value)}
+								placeholder="Detailed evaluation notes..."
+								className="min-h-[100px]"
+							/>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div className="space-y-2">
+								<Label htmlFor="edit-note-status">Status</Label>
+								<Select value={noteStatus} onValueChange={setNoteStatus}>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{rushStatusOptions.map((option) => (
+											<SelectItem key={option.value} value={option.value}>
+												{option.icon} {option.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="edit-note-score">Score (Optional)</Label>
+								<Input
+									id="edit-note-score"
+									type="number"
+									min="0"
+									max="100"
+									value={noteScore}
+									onChange={(e) => setNoteScore(e.target.value)}
+									placeholder="0-100"
+								/>
+							</div>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setIsEditingNote(false)}>
+							Cancel
+						</Button>
+						<Button onClick={handleUpdateNote} disabled={saving}>
+							{saving ? (
+								<>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									Updating...
+								</>
+							) : (
+								'Update Evaluation'
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</div>
+	)
 }

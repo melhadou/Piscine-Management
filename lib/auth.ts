@@ -1,8 +1,11 @@
-import { auth } from "@/app/api/auth/[...nextauth]/route"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 
+export { authOptions }
+
 export async function getSession() {
-  return await auth()
+  return await getServerSession(authOptions)
 }
 
 export async function requireAuth() {

@@ -61,6 +61,10 @@ interface Student {
 		priority: string
 		author: string
 		createdAt: string
+		// Rush-specific fields
+		rush_project?: string
+		rush_status?: string
+		rush_score?: number
 	}>
 	hasExamData?: boolean
 	hasRushData?: boolean
@@ -76,6 +80,10 @@ interface Note {
 	priority: string
 	author: string
 	created_at: string
+	// Rush-specific fields
+	rush_project?: string
+	rush_status?: string
+	rush_score?: number
 }
 
 interface StudentTableProps {
@@ -148,20 +156,25 @@ export function StudentTable({ students }: StudentTableProps) {
 		return validExams > 0 ? Math.round(totalScore / validExams) : 0
 	}
 
+	// UPDATED STATUS LOGIC - Same as the main page (42 Program Logic)
 	const getStudentStatus = (student: Student) => {
 		const averageGrade = getAverageGrade(student)
 		const level = student.level || 0
-		const rushRating = getBestRushRating(student)
 		const performance = student.performance || 0
 
 		// Count valid exams with proper thresholds
 		let validExams = 0
 		let totalExams = 0
+		let totalGradeSum = 0
+		let examCount = 0
 
 		if (student.grades && typeof student.grades === "object") {
 			Object.entries(student.grades).forEach(([examName, gradeData]) => {
 				if (gradeData && gradeData.grade > 0) {
 					totalExams++
+					totalGradeSum += gradeData.grade
+					examCount++
+
 					// Apply proper validation thresholds
 					if (examName === 'final_exam' && gradeData.grade >= 42) {
 						validExams++
@@ -172,40 +185,127 @@ export function StudentTable({ students }: StudentTableProps) {
 			})
 		}
 
-		// Peer-to-peer evaluation
+		// Analyze rush notes data if available
+		let rushPerformance = 0
+		let rushParticipation = 0
+		let rushSuccessRate = 0
+
+		if (student.notes && Array.isArray(student.notes)) {
+			const rushNotes = student.notes.filter(note => note.category === 'rush')
+			if (rushNotes.length > 0) {
+				rushParticipation = rushNotes.length
+				
+				// Count successful rush evaluations
+				const successfulRushes = rushNotes.filter(note => {
+					return note.rush_status === 'success' || 
+						   (note.rush_score && note.rush_score >= 70)
+				}).length
+
+				rushSuccessRate = successfulRushes / rushNotes.length
+
+				// Calculate average rush performance from scores
+				const rushScores = rushNotes
+					.map(note => note.rush_score)
+					.filter(score => score !== null && score !== undefined)
+				
+				if (rushScores.length > 0) {
+					rushPerformance = rushScores.reduce((sum, score) => sum + score, 0) / rushScores.length
+				}
+			}
+		}
+
+		// Peer-to-peer evaluation metrics
 		const reviewsGiven = student.reviewer || 0
 		const reviewsReceived = student.reviewee || 0
 		const votesGiven = student.votes_given || 0
 		const votesReceived = student.votes_received || 0
 
-		// Check for potential cheaters
-		// Level is max 5, if someone has high level but no valid exam scores, suspicious
-		if (level > 2.0 && validExams === 0) {
+		// Calculate interaction score (how much they interact with peers)
+		const totalInteractions = reviewsGiven + reviewsReceived + votesGiven + votesReceived
+		const peerEngagement = reviewsGiven + votesGiven
+
+		// 1. INACTIVE/UNAVAILABLE - Priority check (check this first)
+		if (student.location === "unavailable") {
 			return {
-				status: 'cheater',
-				label: 'Potential Cheater',
-				color: 'bg-red-100 text-red-800 border-red-300',
-				description: 'High level but no valid exam scores'
+				status: 'inactive',
+				label: 'Inactive',
+				color: 'bg-slate-100 text-slate-600 border-slate-300',
+				description: 'Not currently active'
 			}
 		}
 
-		// Check for other cheating patterns - level too high for valid exam performance
-		if (level > 3.0 && averageGrade > 0 && averageGrade < 30) {
+		// 2. DROPPED OUT - Low level, no valid exams, minimal interaction
+		// These are students who likely didn't complete the piscine or dropped early
+		if (level <= 2.0 && validExams === 0 && totalInteractions < 10) {
 			return {
-				status: 'cheater',
-				label: 'Suspicious Activity',
-				color: 'bg-red-100 text-red-800 border-red-300',
+				status: 'dropped',
+				label: 'Dropped/Incomplete',
+				color: 'bg-slate-100 text-slate-500 border-slate-300',
+				description: 'Likely dropped out or incomplete piscine'
+			}
+		}
+
+		// 3. NEEDS ATTENTION - 42 Program Logic (Suspicious Activity)
+		// Case A: Level 4+ should have ALL exams validated (this is critical for 42)
+		if (level >= 4.0 && validExams < 4) {
+			return {
+				status: 'needs-attention',
+				label: 'Needs Attention',
+				color: 'bg-red-100 text-red-600 border-red-300',
+				description: 'Level 4+ but missing required exam validations'
+			}
+		}
+
+		// Case B: High level but impossible exam performance
+		if (level > 3.0 && totalExams > 0 && averageGrade > 0 && averageGrade < 30) {
+			return {
+				status: 'needs-attention',
+				label: 'Needs Attention',
+				color: 'bg-red-100 text-red-600 border-red-300',
 				description: 'Level too high for exam performance'
 			}
 		}
 
-		// Check peer-to-peer behavior (only if they have received enough feedback)
-		const isPoorPeer = reviewsGiven < (reviewsReceived / 2) && reviewsReceived > 10
-		const isSelfish = votesGiven < (votesReceived / 3) && votesReceived > 15
+		// Case C: Moderate+ level but zero valid exams (suspicious if they have exam attempts)
+		if (level > 2.5 && totalExams > 2 && validExams === 0) {
+			return {
+				status: 'needs-attention',
+				label: 'Needs Attention',
+				color: 'bg-red-100 text-red-600 border-red-300',
+				description: 'Has level progress but no valid exam scores'
+			}
+		}
 
-		// Excellence criteria (level max 5, so 4+ is excellent)
-		// Updated criteria: high level + good performance + valid exams
-		if (level >= 4.0 && (performance >= 80 || averageGrade >= 70) && validExams >= 3) {
+		// Case D: Level progression doesn't match peer evaluation patterns
+		// If someone has high level but very low peer interaction, might be cheating
+		if (level > 3.0 && totalInteractions < 5 && validExams < 2) {
+			return {
+				status: 'needs-attention',
+				label: 'Needs Attention',
+				color: 'bg-red-100 text-red-600 border-red-300',
+				description: 'High level but minimal interaction and exam performance'
+			}
+		}
+
+		// 4. LEGITIMATE CLASSIFICATIONS
+		// Check for poor peer behavior among legitimate students
+		const isPoorPeer = reviewsGiven < (reviewsReceived / 3) && reviewsReceived > 8
+		const isSelfish = votesGiven < (votesReceived / 4) && votesReceived > 12
+
+		// EXCELLENT: High performance across metrics (Level 4+ with all exams)
+		if (level >= 4.0 && (performance >= 80 || averageGrade >= 70) && validExams >= 4) {
+			// Check if rush performance supports excellent status
+			const rushSupportsExcellent = rushParticipation === 0 || rushSuccessRate >= 0.6 || rushPerformance >= 70
+			
+			if (!rushSupportsExcellent && rushParticipation > 0) {
+				return {
+					status: 'needs-attention',
+					label: 'Needs Attention',
+					color: 'bg-red-100 text-red-600 border-red-300',
+					description: 'High level but poor rush performance'
+				}
+			}
+
 			if (isPoorPeer || isSelfish) {
 				return {
 					status: 'excellent-selfish',
@@ -222,16 +322,29 @@ export function StudentTable({ students }: StudentTableProps) {
 			}
 		}
 
-		// Good criteria - relaxed for better classification
-		if (level >= 3.0 && (performance >= 70 || averageGrade >= 60) && validExams >= 2) {
+		// GOOD: Solid performance
+		if (level >= 3.0 && (performance >= 65 || averageGrade >= 60) && validExams >= 2) {
+			// Factor in rush performance for good students
+			const rushPerformanceCheck = rushParticipation === 0 || rushSuccessRate >= 0.4 || rushPerformance >= 60
+			
 			if (isPoorPeer || isSelfish) {
 				return {
 					status: 'good-selfish',
 					label: 'Good (Poor Peer)',
 					color: 'bg-orange-100 text-orange-800 border-orange-300',
-					description: 'Good student but low peer participation'
+					description: `Good student but ${rushPerformanceCheck ? 'low peer participation' : 'poor rush + peer performance'}`
 				}
 			}
+			
+			if (!rushPerformanceCheck && rushParticipation > 0) {
+				return {
+					status: 'struggling',
+					label: 'Struggling',
+					color: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+					description: 'Good level progress but struggling with rush projects'
+				}
+			}
+			
 			return {
 				status: 'good',
 				label: 'Good',
@@ -240,8 +353,8 @@ export function StudentTable({ students }: StudentTableProps) {
 			}
 		}
 
-		// Average criteria
-		if (level >= 2.0 && (performance >= 50 || averageGrade >= 50) && validExams >= 1) {
+		// AVERAGE: Meeting basic requirements
+		if (level >= 2.0 && (performance >= 50 || averageGrade >= 50 || validExams >= 1)) {
 			return {
 				status: 'average',
 				label: 'Average',
@@ -250,22 +363,22 @@ export function StudentTable({ students }: StudentTableProps) {
 			}
 		}
 
-		// Inactive check
-		if (student.location === "unavailable") {
+		// STRUGGLING: Active but having difficulties (only for low levels)
+		if (level >= 1.0 && level < 3.0 && totalInteractions > 5) {
 			return {
-				status: 'inactive',
-				label: 'Inactive',
-				color: 'bg-slate-100 text-slate-600 border-slate-300',
-				description: 'Not currently active'
+				status: 'struggling',
+				label: 'Struggling',
+				color: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+				description: 'Active student but struggling with performance'
 			}
 		}
 
-		// Needs attention - only for truly poor performance
+		// NEEDS ATTENTION: Low performance, potentially at risk, or other issues
 		return {
 			status: 'needs-attention',
 			label: 'Needs Attention',
 			color: 'bg-red-100 text-red-600 border-red-300',
-			description: 'Below expected performance or no valid exams'
+			description: 'Low performance, minimal engagement, or suspicious activity'
 		}
 	}
 
@@ -496,6 +609,28 @@ export function StudentTable({ students }: StudentTableProps) {
 		)
 	}
 
+	const getRushStatusBadge = (status: string) => {
+		const statusColors = {
+			'pending': 'bg-gray-100 text-gray-800',
+			'success': 'bg-green-100 text-green-800',
+			'failed': 'bg-red-100 text-red-800',
+			'absent': 'bg-orange-100 text-orange-800'
+		}
+
+		const statusIcons = {
+			'pending': '⏳',
+			'success': '✅',
+			'failed': '❌',
+			'absent': '🚫'
+		}
+
+		return (
+			<Badge className={statusColors[status] || 'bg-gray-100 text-gray-800'} variant="outline" className="text-xs">
+				{statusIcons[status]} {status.charAt(0).toUpperCase() + status.slice(1)}
+			</Badge>
+		)
+	}
+
 	const formatDate = (dateString: string) => {
 		return new Date(dateString).toLocaleDateString("en-US", {
 			year: "numeric",
@@ -533,10 +668,11 @@ export function StudentTable({ students }: StudentTableProps) {
 								<TableRow
 									key={student.uuid}
 									className={`border-l-4 ${studentStatus.color.includes('bg-green') ? 'border-l-green-400' :
-											studentStatus.color.includes('bg-red') ? 'border-l-red-400' :
-												studentStatus.color.includes('bg-yellow') ? 'border-l-yellow-400' :
-													studentStatus.color.includes('bg-blue') ? 'border-l-blue-400' :
-														studentStatus.color.includes('bg-orange') ? 'border-l-orange-400' :
+										studentStatus.color.includes('bg-red') ? 'border-l-red-400' :
+											studentStatus.color.includes('bg-yellow') ? 'border-l-yellow-400' :
+												studentStatus.color.includes('bg-blue') ? 'border-l-blue-400' :
+													studentStatus.color.includes('bg-orange') ? 'border-l-orange-400' :
+														studentStatus.color.includes('bg-slate') ? 'border-l-slate-400' :
 															'border-l-gray-400'
 										}`}
 								>
@@ -653,12 +789,12 @@ export function StudentTable({ students }: StudentTableProps) {
 				</div>
 			)}
 
-			{/* Student Detail Dialog */}
 			<Dialog open={showStudentDetail} onOpenChange={handleStudentDetailClose}>
 				<DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Avatar className="h-10 w-10">
+					<DialogHeader className="text-center space-y-4">
+						{/* Centered larger image */}
+						<div className="flex justify-center">
+							<Avatar className="h-44 w-44 border-4 border-white shadow-lg">
 								{selectedStudent?.profileImageUrl && selectedStudent.profileImageUrl.trim() !== '' ? (
 									<AvatarImage
 										src={selectedStudent.profileImageUrl}
@@ -670,10 +806,24 @@ export function StudentTable({ students }: StudentTableProps) {
 										}}
 									/>
 								) : null}
-								<AvatarFallback>{getInitials(selectedStudent?.firstName || "")}</AvatarFallback>
+								<AvatarFallback className="text-2xl font-bold bg-gradient-to-br from-blue-100 to-purple-100">
+									{getInitials(selectedStudent?.firstName || "")}
+								</AvatarFallback>
 							</Avatar>
-							{selectedStudent?.firstName} ({selectedStudent?.uuid})
-						</DialogTitle>
+						</div>
+
+						{/* Student name and info below image */}
+						<div>
+							<DialogTitle className="text-2xl font-bold">
+								{selectedStudent?.firstName} {selectedStudent?.lastName}
+							</DialogTitle>
+							<p className="text-muted-foreground mt-1">
+								@{selectedStudent?.login} • {selectedStudent?.uuid}
+							</p>
+							<div className="flex justify-center mt-2">
+								{selectedStudent && getStatusBadge(selectedStudent)}
+							</div>
+						</div>
 					</DialogHeader>
 
 					{selectedStudent && (
@@ -762,14 +912,29 @@ export function StudentTable({ students }: StudentTableProps) {
 											) : (
 												<div className="space-y-3">
 													{notes.map((note) => (
-														<div key={note.id} className="p-3 border rounded-lg">
+														<div key={note.id} className={`p-3 border rounded-lg ${note.category === 'rush' ? 'border-l-4 border-l-blue-500 bg-blue-50/30' : ''}`}>
 															<div className="flex items-start justify-between mb-2">
 																<h4 className="text-sm font-medium">{note.title}</h4>
-																<div className="flex items-center gap-1">
+																<div className="flex items-center gap-1 flex-wrap">
 																	{getCategoryBadge(note.category)}
-																	{getPriorityBadge(note.priority)}
+																	{note.category !== 'rush' && getPriorityBadge(note.priority)}
+																	{/* Rush-specific badges */}
+																	{note.category === 'rush' && note.rush_status && getRushStatusBadge(note.rush_status)}
+																	{note.category === 'rush' && note.rush_score !== null && note.rush_score !== undefined && (
+																		<Badge className="bg-purple-100 text-purple-800" variant="outline" className="text-xs">
+																			🏆 {note.rush_score}/100
+																		</Badge>
+																	)}
 																</div>
 															</div>
+															{/* Rush project info */}
+															{note.category === 'rush' && note.rush_project && (
+																<div className="flex items-center gap-2 mb-2">
+																	<Badge variant="secondary" className="text-xs">
+																		📝 {note.rush_project.charAt(0).toUpperCase() + note.rush_project.slice(1)}
+																	</Badge>
+																</div>
+															)}
 															<p className="text-xs text-muted-foreground mb-2">{note.content}</p>
 															<div className="flex items-center justify-between text-xs text-muted-foreground">
 																<span>By {note.author}</span>
