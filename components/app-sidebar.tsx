@@ -1,6 +1,7 @@
 "use client"
 import type * as React from "react"
 import { useSession } from "next-auth/react"
+import Link from "next/link"
 import {
 	BarChart3,
 	Command,
@@ -12,7 +13,6 @@ import {
 	FileText,
 	Trophy,
 	Upload,
-	Settings,
 } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -59,11 +59,6 @@ const defaultNavItems = {
 			url: "/import",
 			icon: Upload,
 		},
-		{
-			title: "Settings",
-			url: "/settings",
-			icon: Settings,
-		},
 		// {
 		// 	title: "Support",
 		// 	url: "#",
@@ -71,21 +66,7 @@ const defaultNavItems = {
 		// },
 	],
 	projects: [
-		{
-			name: "C Piscine",
-			url: "#",
-			icon: Frame,
-		},
-		{
-			name: "Rush Projects",
-			url: "#",
-			icon: PieChart,
-		},
-		{
-			name: "Evaluations",
-			url: "#",
-			icon: Map,
-		},
+		// Removed unused project sections with placeholder URLs
 	],
 }
 
@@ -104,15 +85,15 @@ export function AppSidebar({ hideSidebar = false, ...props }: AppSidebarProps) {
 	}
 
 	// Hide sidebar if hideSidebar prop is true or user is not authenticated
-	if (hideSidebar || status === "loading" || !session) {
+	if (hideSidebar || (status === "unauthenticated")) {
 		return null
 	}
 
-	// Use session data for user info
+	// Use session data for user info, with loading fallbacks
 	const userData = {
-		name: session.user?.name || "User",
-		email: session.user?.email || "user@example.com",
-		avatar: session.user?.image || "/placeholder-user.jpg",
+		name: session?.user?.name || (status === "loading" ? "Loading..." : "User"),
+		email: session?.user?.email || (status === "loading" ? "Loading..." : "user@example.com"),
+		avatar: session?.user?.image || "/placeholder-user.jpg",
 	}
 
 	return (
@@ -121,7 +102,7 @@ export function AppSidebar({ hideSidebar = false, ...props }: AppSidebarProps) {
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
-							<a href="#" onClick={handleLinkClick}>
+							<Link href="/dashboard" onClick={handleLinkClick}>
 								<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
 									<Command className="size-4" />
 								</div>
@@ -129,7 +110,7 @@ export function AppSidebar({ hideSidebar = false, ...props }: AppSidebarProps) {
 									<span className="truncate font-semibold">Piscine Management</span>
 									<span className="truncate text-xs">42 School Dashboard</span>
 								</div>
-							</a>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
